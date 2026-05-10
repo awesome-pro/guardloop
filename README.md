@@ -67,7 +67,7 @@ flowchart LR
 
 ## Install
 
-After the first PyPI release is published:
+Install from PyPI:
 
 ```bash
 pip install guardloop

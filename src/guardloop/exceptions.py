@@ -6,8 +6,8 @@ from decimal import Decimal
 from typing import Any
 
 
-class AgentRuntimeError(Exception):
-    """Base class for all controlled AgentRuntime exceptions."""
+class GuardLoopError(Exception):
+    """Base class for all controlled GuardLoop exceptions."""
 
     terminated_reason = "runtime_error"
 
@@ -16,7 +16,7 @@ class AgentRuntimeError(Exception):
         self.details = details or {}
 
 
-class BudgetExceeded(AgentRuntimeError):
+class BudgetExceeded(GuardLoopError):
     """Raised when a call would exceed the configured cost cap."""
 
     terminated_reason = "budget_exceeded"
@@ -33,19 +33,19 @@ class BudgetExceeded(AgentRuntimeError):
         super().__init__(message, details=details)
 
 
-class TokenLimitExceeded(AgentRuntimeError):
+class TokenLimitExceeded(GuardLoopError):
     """Raised when a call would exceed the configured token cap."""
 
     terminated_reason = "token_limit_exceeded"
 
 
-class ToolCallLimitExceeded(AgentRuntimeError):
+class ToolCallLimitExceeded(GuardLoopError):
     """Raised when a tool call would exceed the configured tool-call cap."""
 
     terminated_reason = "tool_call_limit_exceeded"
 
 
-class CircuitBreakerOpen(AgentRuntimeError):
+class CircuitBreakerOpen(GuardLoopError):
     """Raised when a tool circuit breaker rejects a call."""
 
     terminated_reason = "circuit_breaker_open"
@@ -71,19 +71,22 @@ class CircuitBreakerOpen(AgentRuntimeError):
         )
 
 
-class TimeLimitExceeded(AgentRuntimeError):
+class TimeLimitExceeded(GuardLoopError):
     """Raised when the run exceeds the configured wall-clock cap."""
 
     terminated_reason = "timeout"
 
 
-class ModelPricingMissing(AgentRuntimeError):
+class ModelPricingMissing(GuardLoopError):
     """Raised when no pricing entry exists for a provider/model pair."""
 
     terminated_reason = "model_pricing_missing"
 
 
-class TokenLimitMissing(AgentRuntimeError):
+class TokenLimitMissing(GuardLoopError):
     """Raised when the runtime cannot reserve output tokens before an LLM call."""
 
     terminated_reason = "token_limit_missing"
+
+
+AgentRuntimeError = GuardLoopError

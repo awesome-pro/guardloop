@@ -4,20 +4,20 @@ from collections.abc import Callable
 
 import pytest
 
-from agentruntime import (
-    AgentRuntime,
+from guardloop import (
     BudgetConfig,
     CircuitBreakerConfig,
     CircuitBreakerPolicy,
     CircuitBreakerState,
+    GuardLoop,
     RunContext,
 )
-from agentruntime.budget import BudgetController
-from agentruntime.circuit_breaker import CircuitBreakerRegistry
-from agentruntime.models import TelemetryConfig as InternalTelemetryConfig
-from agentruntime.pricing import PricingCatalog
-from agentruntime.telemetry.tracer import Telemetry
-from agentruntime.tools import ToolRunner
+from guardloop.budget import BudgetController
+from guardloop.circuit_breaker import CircuitBreakerRegistry
+from guardloop.models import TelemetryConfig as InternalTelemetryConfig
+from guardloop.pricing import PricingCatalog
+from guardloop.telemetry.tracer import Telemetry
+from guardloop.tools import ToolRunner
 
 
 class FakeClock:
@@ -32,7 +32,7 @@ class FakeClock:
 
 
 async def test_closed_breaker_allows_normal_tool_calls() -> None:
-    runtime = AgentRuntime()
+    runtime = GuardLoop()
     calls = 0
 
     def stable_tool() -> str:
@@ -54,7 +54,7 @@ async def test_closed_breaker_allows_normal_tool_calls() -> None:
 
 
 async def test_consecutive_failures_open_breaker_and_reject_without_invoking_tool() -> None:
-    runtime = AgentRuntime(
+    runtime = GuardLoop(
         circuit_breakers=CircuitBreakerConfig(
             default=CircuitBreakerPolicy(failure_threshold=2, recovery_timeout_seconds=30)
         )
@@ -84,7 +84,7 @@ async def test_consecutive_failures_open_breaker_and_reject_without_invoking_too
 
 
 async def test_open_breaker_does_not_increment_tool_call_limit() -> None:
-    runtime = AgentRuntime(
+    runtime = GuardLoop(
         budget=BudgetConfig(tool_call_limit=1),
         circuit_breakers=CircuitBreakerConfig(
             default=CircuitBreakerPolicy(failure_threshold=1, recovery_timeout_seconds=30)
@@ -184,7 +184,7 @@ async def test_per_tool_overrides_are_independent_from_global_default() -> None:
 
 
 async def test_breaker_state_persists_across_runtime_runs() -> None:
-    runtime = AgentRuntime(
+    runtime = GuardLoop(
         circuit_breakers=CircuitBreakerConfig(
             default=CircuitBreakerPolicy(failure_threshold=1, recovery_timeout_seconds=30)
         )
@@ -202,7 +202,7 @@ async def test_breaker_state_persists_across_runtime_runs() -> None:
 
 
 async def test_runtime_reset_helpers_reset_one_or_all_breakers() -> None:
-    runtime = AgentRuntime(
+    runtime = GuardLoop(
         circuit_breakers=CircuitBreakerConfig(
             default=CircuitBreakerPolicy(failure_threshold=1, recovery_timeout_seconds=30)
         )
@@ -226,7 +226,7 @@ async def test_runtime_reset_helpers_reset_one_or_all_breakers() -> None:
 
 
 async def test_circuit_breaker_open_returns_structured_result_metadata() -> None:
-    runtime = AgentRuntime(
+    runtime = GuardLoop(
         circuit_breakers=CircuitBreakerConfig(
             default=CircuitBreakerPolicy(failure_threshold=1, recovery_timeout_seconds=30)
         )
@@ -248,7 +248,7 @@ async def test_circuit_breaker_open_returns_structured_result_metadata() -> None
 
 
 async def test_disabled_breakers_do_not_block_or_track() -> None:
-    runtime = AgentRuntime(circuit_breakers=CircuitBreakerConfig(enabled=False))
+    runtime = GuardLoop(circuit_breakers=CircuitBreakerConfig(enabled=False))
     calls = 0
 
     def flaky_tool() -> str:

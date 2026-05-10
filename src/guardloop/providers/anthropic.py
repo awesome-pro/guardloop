@@ -1,4 +1,4 @@
-"""OpenAI Responses API wrapper."""
+"""Anthropic Messages API wrapper."""
 
 from __future__ import annotations
 
@@ -6,55 +6,62 @@ import inspect
 from collections.abc import Awaitable, Mapping
 from typing import Any, Protocol, cast
 
-from agentruntime.budget import BudgetController
-from agentruntime.telemetry.conventions import llm_request_attributes, llm_response_attributes
-from agentruntime.telemetry.tracer import Telemetry
-from agentruntime.tokenization import estimate_openai_tokens
+from guardloop.budget import BudgetController
+from guardloop.telemetry.conventions import llm_request_attributes, llm_response_attributes
+from guardloop.telemetry.tracer import Telemetry
+from guardloop.tokenization import estimate_anthropic_tokens
 
 
-class _ResponsesAPI(Protocol):
+class _MessagesAPI(Protocol):
     def create(self, **kwargs: Any) -> Awaitable[object] | object: ...
 
 
-class _OpenAIClient(Protocol):
+class _AnthropicClient(Protocol):
     @property
-    def responses(self) -> _ResponsesAPI: ...
+    def messages(self) -> _MessagesAPI: ...
 
 
-class WrappedOpenAIClient:
-    """OpenAI client facade that currently wraps `responses.create`."""
+class WrappedAnthropicClient:
+    """Anthropic client facade that currently wraps `messages.create`."""
 
-    def __init__(self, client: object, budget: BudgetController, telemetry: Telemetry) -> None:
-        typed_client = cast(_OpenAIClient, client)
-        self.responses = WrappedOpenAIResponses(typed_client.responses, budget, telemetry)
-
-
-class WrappedOpenAIResponses:
     def __init__(
         self,
-        responses: _ResponsesAPI,
+        client: object,
         budget: BudgetController,
         telemetry: Telemetry,
     ) -> None:
-        self._responses = responses
+        typed_client = cast(_AnthropicClient, client)
+        self.messages = WrappedAnthropicMessages(typed_client.messages, budget, telemetry)
+
+
+class WrappedAnthropicMessages:
+    def __init__(
+        self,
+        messages: _MessagesAPI,
+        budget: BudgetController,
+        telemetry: Telemetry,
+    ) -> None:
+        self._messages = messages
         self._budget = budget
         self._telemetry = telemetry
 
     async def create(self, **kwargs: Any) -> object:
         model = _require_str(kwargs, "model")
-        max_output_tokens = _optional_positive_int(kwargs.get("max_output_tokens"))
-        estimated_input_tokens = estimate_openai_tokens(model, kwargs.get("input"))
+        max_tokens = _optional_positive_int(kwargs.get("max_tokens"))
+        estimated_input_tokens = estimate_anthropic_tokens(
+            {"system": kwargs.get("system"), "messages": kwargs.get("messages")}
+        )
         preflight = self._budget.check_llm_call(
-            provider="openai",
+            provider="anthropic",
             model=model,
             estimated_input_tokens=estimated_input_tokens,
-            reserved_output_tokens=max_output_tokens,
+            reserved_output_tokens=max_tokens,
         )
 
         with self._telemetry.start_span(
-            "llm_call openai.responses.create",
+            "llm_call anthropic.messages.create",
             llm_request_attributes(
-                provider="openai",
+                provider="anthropic",
                 model=model,
                 estimated_input_tokens=estimated_input_tokens,
                 reserved_output_tokens=preflight.reserved_output_tokens,
@@ -62,16 +69,16 @@ class WrappedOpenAIResponses:
             ),
         ) as span:
             try:
-                maybe_response = self._responses.create(**kwargs)
+                maybe_response = self._messages.create(**kwargs)
                 response = (
                     await maybe_response if inspect.isawaitable(maybe_response) else maybe_response
                 )
-                input_tokens, output_tokens = _openai_usage_tokens(
+                input_tokens, output_tokens = _anthropic_usage_tokens(
                     response,
                     fallback_input_tokens=estimated_input_tokens,
                 )
                 actual_cost = self._budget.record_llm_call(
-                    provider="openai",
+                    provider="anthropic",
                     model=model,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
@@ -95,7 +102,7 @@ class WrappedOpenAIResponses:
 def _require_str(kwargs: Mapping[str, Any], key: str) -> str:
     value = kwargs.get(key)
     if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"OpenAI responses.create requires a non-empty {key!r}.")
+        raise ValueError(f"Anthropic messages.create requires a non-empty {key!r}.")
     return value
 
 
@@ -119,13 +126,18 @@ def _get(obj: object, key: str, default: object = None) -> object:
     return getattr(obj, key, default)
 
 
-def _openai_usage_tokens(response: object, *, fallback_input_tokens: int) -> tuple[int, int]:
+def _anthropic_usage_tokens(response: object, *, fallback_input_tokens: int) -> tuple[int, int]:
     usage = _get(response, "usage")
     if usage is None:
         return fallback_input_tokens, 0
-    input_tokens = _get(usage, "input_tokens", _get(usage, "prompt_tokens", fallback_input_tokens))
-    output_tokens = _get(usage, "output_tokens", _get(usage, "completion_tokens", 0))
-    return _as_int(input_tokens, fallback_input_tokens), _as_int(output_tokens, 0)
+    input_tokens = _as_int(
+        _get(usage, "input_tokens", fallback_input_tokens),
+        fallback_input_tokens,
+    )
+    cache_creation = _as_int(_get(usage, "cache_creation_input_tokens", 0), 0)
+    cache_read = _as_int(_get(usage, "cache_read_input_tokens", 0), 0)
+    output_tokens = _as_int(_get(usage, "output_tokens", 0), 0)
+    return input_tokens + cache_creation + cache_read, output_tokens
 
 
 def _as_int(value: object, default: int) -> int:

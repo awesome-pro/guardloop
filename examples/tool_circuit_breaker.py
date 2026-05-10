@@ -5,17 +5,17 @@ from __future__ import annotations
 import asyncio
 import json
 
-from agentruntime import (
-    AgentRuntime,
+from guardloop import (
     BudgetConfig,
     CircuitBreakerConfig,
     CircuitBreakerPolicy,
+    GuardLoop,
     RunContext,
 )
 
 
 async def main() -> None:
-    runtime = AgentRuntime(
+    runtime = GuardLoop(
         budget=BudgetConfig(tool_call_limit=10, time_limit_seconds=10),
         circuit_breakers=CircuitBreakerConfig(
             default=CircuitBreakerPolicy(

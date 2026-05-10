@@ -4,11 +4,11 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from agentruntime import (
-    AgentRuntime,
+from guardloop import (
     BudgetConfig,
     CircuitBreakerConfig,
     CircuitBreakerPolicy,
+    GuardLoop,
     RunContext,
     TelemetryConfig,
 )
@@ -19,9 +19,9 @@ async def test_runtime_emits_agent_llm_and_tool_spans() -> None:
     exporter = InMemorySpanExporter()
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
-    tracer = provider.get_tracer("agentruntime-tests")
+    tracer = provider.get_tracer("guardloop-tests")
 
-    runtime = AgentRuntime(
+    runtime = GuardLoop(
         budget=BudgetConfig(cost_limit_usd="1.00", tool_call_limit=5),
         telemetry=TelemetryConfig(enabled=True),
         openai_client=FakeOpenAIClient(),
@@ -56,17 +56,17 @@ async def test_runtime_emits_agent_llm_and_tool_spans() -> None:
     tool_span = next(span for span in spans if span.name == "tool_call formatter")
     tool_attributes = tool_span.attributes
     assert tool_attributes is not None
-    assert tool_attributes["agentruntime.tool.name"] == "formatter"
-    assert tool_attributes["agentruntime.tool.calls_used"] == 1
+    assert tool_attributes["guardloop.tool.name"] == "formatter"
+    assert tool_attributes["guardloop.tool.calls_used"] == 1
 
 
 async def test_tool_spans_include_circuit_breaker_attributes() -> None:
     exporter = InMemorySpanExporter()
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
-    tracer = provider.get_tracer("agentruntime-circuit-breaker-tests")
+    tracer = provider.get_tracer("guardloop-circuit-breaker-tests")
 
-    runtime = AgentRuntime(
+    runtime = GuardLoop(
         budget=BudgetConfig(tool_call_limit=5),
         telemetry=TelemetryConfig(enabled=True),
         circuit_breakers=CircuitBreakerConfig(
@@ -94,13 +94,13 @@ async def test_tool_spans_include_circuit_breaker_attributes() -> None:
     failed_span = spans[0]
     failed_attributes = failed_span.attributes
     assert failed_attributes is not None
-    assert failed_attributes["agentruntime.circuit_breaker.state"] == "open"
-    assert failed_attributes["agentruntime.circuit_breaker.failure_count"] == 1
-    assert failed_attributes["agentruntime.circuit_breaker.blocked"] is False
+    assert failed_attributes["guardloop.circuit_breaker.state"] == "open"
+    assert failed_attributes["guardloop.circuit_breaker.failure_count"] == 1
+    assert failed_attributes["guardloop.circuit_breaker.blocked"] is False
 
     blocked_span = spans[1]
     blocked_attributes = blocked_span.attributes
     assert blocked_attributes is not None
-    assert blocked_attributes["agentruntime.circuit_breaker.state"] == "open"
-    assert blocked_attributes["agentruntime.circuit_breaker.failure_count"] == 1
-    assert blocked_attributes["agentruntime.circuit_breaker.blocked"] is True
+    assert blocked_attributes["guardloop.circuit_breaker.state"] == "open"
+    assert blocked_attributes["guardloop.circuit_breaker.failure_count"] == 1
+    assert blocked_attributes["guardloop.circuit_breaker.blocked"] is True

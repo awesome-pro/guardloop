@@ -6,7 +6,7 @@ import asyncio
 import os
 from typing import Protocol, cast
 
-from agentruntime import AgentRuntime, BudgetConfig, RunContext
+from guardloop import BudgetConfig, GuardLoop, RunContext
 
 
 class HasOutputText(Protocol):
@@ -26,7 +26,7 @@ async def main() -> None:
     if not os.getenv("OPENAI_API_KEY"):
         raise SystemExit("Set OPENAI_API_KEY before running this live example.")
 
-    runtime = AgentRuntime(
+    runtime = GuardLoop(
         budget=BudgetConfig(
             cost_limit_usd="0.05",
             token_limit=5_000,

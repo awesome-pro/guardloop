@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from agentruntime.budget import BudgetController
-from agentruntime.exceptions import ModelPricingMissing, TokenLimitMissing
-from agentruntime.models import BudgetConfig, TelemetryConfig
-from agentruntime.pricing import PricingCatalog
-from agentruntime.providers.anthropic import WrappedAnthropicClient
-from agentruntime.providers.openai import WrappedOpenAIClient
-from agentruntime.telemetry.tracer import Telemetry
+from guardloop.budget import BudgetController
+from guardloop.exceptions import ModelPricingMissing, TokenLimitMissing
+from guardloop.models import BudgetConfig, TelemetryConfig
+from guardloop.pricing import PricingCatalog
+from guardloop.providers.anthropic import WrappedAnthropicClient
+from guardloop.providers.openai import WrappedOpenAIClient
+from guardloop.telemetry.tracer import Telemetry
 from tests.fakes import FakeAnthropicClient, FakeOpenAIClient
 
 

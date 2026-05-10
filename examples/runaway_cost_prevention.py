@@ -6,7 +6,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import Protocol, cast
 
-from agentruntime import AgentRuntime, BudgetConfig, RunContext
+from guardloop import BudgetConfig, GuardLoop, RunContext
 
 
 @dataclass(slots=True)
@@ -54,7 +54,7 @@ async def runaway_agent(ctx: RunContext, topic: str) -> str:
 
 async def main() -> None:
     fake_openai = FakeOpenAIClient()
-    runtime = AgentRuntime(
+    runtime = GuardLoop(
         budget=BudgetConfig(
             cost_limit_usd="0.02",
             token_limit=10_000,
@@ -65,7 +65,7 @@ async def main() -> None:
     )
 
     result = await runtime.run(runaway_agent, "Investigate agent runtime safety.")
-    print("\nAgentRuntime stopped the runaway loop:")
+    print("\nGuardLoop stopped the runaway loop:")
     print(result.model_dump_json(indent=2))
 
 

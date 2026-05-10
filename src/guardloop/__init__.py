@@ -1,25 +1,28 @@
-"""AgentRuntime public API."""
+"""GuardLoop public API."""
 
-from agentruntime.circuit_breaker import (
+from guardloop.circuit_breaker import (
     CircuitBreakerConfig,
     CircuitBreakerPolicy,
     CircuitBreakerSnapshot,
     CircuitBreakerState,
 )
-from agentruntime.context import RunContext
-from agentruntime.exceptions import (
-    AgentRuntimeError,
+from guardloop.context import RunContext
+from guardloop.exceptions import (
     BudgetExceeded,
     CircuitBreakerOpen,
+    GuardLoopError,
     ModelPricingMissing,
     TimeLimitExceeded,
     TokenLimitExceeded,
     TokenLimitMissing,
     ToolCallLimitExceeded,
 )
-from agentruntime.models import BudgetConfig, RunResult, TelemetryConfig
-from agentruntime.pricing import ModelPricing
-from agentruntime.runtime import AgentRuntime
+from guardloop.models import BudgetConfig, RunResult, TelemetryConfig
+from guardloop.pricing import ModelPricing
+from guardloop.runtime import GuardLoop
+
+AgentRuntime = GuardLoop
+AgentRuntimeError = GuardLoopError
 
 __all__ = [
     "AgentRuntime",
@@ -31,6 +34,8 @@ __all__ = [
     "CircuitBreakerPolicy",
     "CircuitBreakerSnapshot",
     "CircuitBreakerState",
+    "GuardLoop",
+    "GuardLoopError",
     "ModelPricing",
     "ModelPricingMissing",
     "RunContext",

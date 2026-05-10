@@ -1,6 +1,6 @@
-# AgentRuntime
+# GuardLoop
 
-AgentRuntime is a production runtime guardrail for AI agents. It wraps model
+GuardLoop is a production runtime guardrail for AI agents. It wraps model
 clients and tools with hard budget caps, timeout control, tool-call limits, and
 per-tool circuit breakers, with OpenTelemetry traces for every protected call.
 Runaway agent loops can be stopped before they burn through money, and flaky
@@ -10,15 +10,15 @@ The v0.2 focus is intentionally sharp: **runtime guardrails for async Python
 agents** using direct OpenAI and Anthropic wrappers plus protected tool calls.
 
 ```python
-from agentruntime import (
-    AgentRuntime,
+from guardloop import (
+    GuardLoop,
     BudgetConfig,
     CircuitBreakerConfig,
     CircuitBreakerPolicy,
     RunContext,
 )
 
-runtime = AgentRuntime(
+runtime = GuardLoop(
     budget=BudgetConfig(
         cost_limit_usd="0.10",
         token_limit=10_000,
@@ -51,11 +51,11 @@ print(result.model_dump_json(indent=2))
 
 Agents are loops around probabilistic systems. When they go wrong, they can call
 the same model or tool repeatedly, spend unexpected money, and fail without a
-clear trace. AgentRuntime puts an explicit execution layer around that loop:
+clear trace. GuardLoop puts an explicit execution layer around that loop:
 
 ```mermaid
 flowchart LR
-    U["User code"] --> R["AgentRuntime"]
+    U["User code"] --> R["GuardLoop"]
     R --> B["BudgetController"]
     R --> CB["CircuitBreakerRegistry"]
     R --> T["OpenTelemetry spans"]
@@ -70,7 +70,7 @@ flowchart LR
 After the first PyPI release is published:
 
 ```bash
-pip install agentruntime
+pip install guardloop
 ```
 
 For local development:
@@ -82,7 +82,7 @@ uv sync
 Optional OpenTelemetry exporters are available through the `otel` extra:
 
 ```bash
-pip install "agentruntime[otel]"
+pip install "guardloop[otel]"
 ```
 
 For local development with the extra:
@@ -98,13 +98,13 @@ uv run python examples/runaway_cost_prevention.py
 ```
 
 The demo uses a fake OpenAI-compatible client and intentionally loops forever.
-AgentRuntime stops it when the next model request would exceed the cost cap.
+GuardLoop stops it when the next model request would exceed the cost cap.
 
 ```bash
 uv run python examples/tool_circuit_breaker.py
 ```
 
-This demo uses a failing fake tool. AgentRuntime allows the first failures,
+This demo uses a failing fake tool. GuardLoop allows the first failures,
 opens the circuit breaker, then rejects the next call without invoking the tool.
 
 ## Live Provider Smoke Tests
@@ -123,7 +123,7 @@ Both live examples can be customized with `OPENAI_MODEL` or `ANTHROPIC_MODEL`.
 
 ```bash
 uv run pytest
-uv run pytest --cov=agentruntime
+uv run pytest --cov=guardloop
 uv run ruff check .
 uv run ruff format --check .
 uv run pyright

@@ -41,7 +41,7 @@ jobs:
     needs: build
     environment:
       name: pypi
-      url: https://pypi.org/project/agentruntime/
+      url: https://pypi.org/project/guardloop/
     permissions:
       id-token: write
       contents: read

@@ -9,11 +9,11 @@ from typing import Any
 
 from opentelemetry.trace import Span
 
-from agentruntime.budget import BudgetController
-from agentruntime.circuit_breaker import CircuitBreakerDecision, CircuitBreakerRegistry
-from agentruntime.exceptions import AgentRuntimeError, CircuitBreakerOpen
-from agentruntime.telemetry.conventions import tool_attributes
-from agentruntime.telemetry.tracer import Telemetry
+from guardloop.budget import BudgetController
+from guardloop.circuit_breaker import CircuitBreakerDecision, CircuitBreakerRegistry
+from guardloop.exceptions import CircuitBreakerOpen, GuardLoopError
+from guardloop.telemetry.conventions import tool_attributes
+from guardloop.telemetry.tracer import Telemetry
 
 
 class ToolRunner:
@@ -80,7 +80,7 @@ class ToolRunner:
                 )
                 self._telemetry.mark_ok(span)
                 return result
-            except AgentRuntimeError as exc:
+            except GuardLoopError as exc:
                 self._telemetry.record_exception(span, exc)
                 raise
             except (asyncio.CancelledError, TimeoutError) as exc:
@@ -156,7 +156,7 @@ def _apply_breaker_open(
     )
     telemetry.set_attributes(span, attributes)
     if telemetry.config.enabled:
-        span.add_event("agentruntime.circuit_breaker.blocked", attributes)
+        span.add_event("guardloop.circuit_breaker.blocked", attributes)
 
 
 def _int_detail(value: object) -> int | None:

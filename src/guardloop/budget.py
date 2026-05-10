@@ -6,15 +6,15 @@ import time
 from dataclasses import dataclass
 from decimal import Decimal
 
-from agentruntime.exceptions import (
+from guardloop.exceptions import (
     BudgetExceeded,
     TimeLimitExceeded,
     TokenLimitExceeded,
     TokenLimitMissing,
     ToolCallLimitExceeded,
 )
-from agentruntime.models import BudgetConfig
-from agentruntime.pricing import ModelPricing, PricingCatalog
+from guardloop.models import BudgetConfig
+from guardloop.pricing import ModelPricing, PricingCatalog
 
 
 @dataclass(frozen=True, slots=True)

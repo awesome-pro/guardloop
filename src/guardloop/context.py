@@ -5,12 +5,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from agentruntime.budget import BudgetController
-from agentruntime.circuit_breaker import CircuitBreakerRegistry
-from agentruntime.providers.anthropic import WrappedAnthropicClient
-from agentruntime.providers.openai import WrappedOpenAIClient
-from agentruntime.telemetry.tracer import Telemetry
-from agentruntime.tools import ToolRunner
+from guardloop.budget import BudgetController
+from guardloop.circuit_breaker import CircuitBreakerRegistry
+from guardloop.providers.anthropic import WrappedAnthropicClient
+from guardloop.providers.openai import WrappedOpenAIClient
+from guardloop.telemetry.tracer import Telemetry
+from guardloop.tools import ToolRunner
 
 
 class RunContext:

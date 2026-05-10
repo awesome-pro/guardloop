@@ -1,5 +1,5 @@
 [project]
-name = "agentruntime"
+name = "guardloop"
 version = "0.2.0"
 description = "A production runtime guardrail for AI agents: budget caps, timeouts, tool limits, and OpenTelemetry traces."
 readme = "README.md"
@@ -50,11 +50,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/awesome-pro/agent-runtime"
-Documentation = "https://github.com/awesome-pro/agent-runtime#readme"
-Repository = "https://github.com/awesome-pro/agent-runtime"
-Issues = "https://github.com/awesome-pro/agent-runtime/issues"
-Changelog = "https://github.com/awesome-pro/agent-runtime/releases"
+Homepage = "https://github.com/awesome-pro/guardloop"
+Documentation = "https://github.com/awesome-pro/guardloop#readme"
+Repository = "https://github.com/awesome-pro/guardloop"
+Issues = "https://github.com/awesome-pro/guardloop/issues"
+Changelog = "https://github.com/awesome-pro/guardloop/releases"
 
 [project.optional-dependencies]
 otel = [

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 
-from agentruntime import AgentRuntime, BudgetConfig, RunContext
+from guardloop import BudgetConfig, GuardLoop, RunContext
 
 
 def _content_text(message: object) -> str:
@@ -31,7 +31,7 @@ async def main() -> None:
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise SystemExit("Set ANTHROPIC_API_KEY before running this live example.")
 
-    runtime = AgentRuntime(
+    runtime = GuardLoop(
         budget=BudgetConfig(
             cost_limit_usd="0.05",
             token_limit=5_000,

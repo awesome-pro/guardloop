@@ -4,6 +4,43 @@ version = "0.2.0"
 description = "A production runtime guardrail for AI agents: budget caps, timeouts, tool limits, and OpenTelemetry traces."
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "awesome-pro", email = "147910430+awesome-pro@users.noreply.github.com" },
+]
+maintainers = [
+    { name = "awesome-pro", email = "147910430+awesome-pro@users.noreply.github.com" },
+]
+keywords = [
+    "agentic-ai",
+    "ai-agents",
+    "ai-safety",
+    "anthropic",
+    "circuit-breaker",
+    "llm",
+    "mlops",
+    "openai",
+    "opentelemetry",
+    "runtime-guardrails",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
 dependencies = [
     "anthropic>=0.97.0,<1",
     "openai>=2.33.0,<3",
@@ -11,6 +48,13 @@ dependencies = [
     "pydantic>=2.13.3,<3",
     "tiktoken>=0.12.0,<1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/awesome-pro/agent-runtime"
+Documentation = "https://github.com/awesome-pro/agent-runtime#readme"
+Repository = "https://github.com/awesome-pro/agent-runtime"
+Issues = "https://github.com/awesome-pro/agent-runtime/issues"
+Changelog = "https://github.com/awesome-pro/agent-runtime/releases"
 
 [project.optional-dependencies]
 otel = [

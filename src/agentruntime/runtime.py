@@ -10,6 +10,11 @@ from typing import Any
 from opentelemetry.trace import Span, Tracer
 
 from agentruntime.budget import BudgetController
+from agentruntime.circuit_breaker import (
+    CircuitBreakerConfig,
+    CircuitBreakerRegistry,
+    CircuitBreakerSnapshot,
+)
 from agentruntime.context import RunContext
 from agentruntime.exceptions import AgentRuntimeError
 from agentruntime.models import BudgetConfig, RunResult, TelemetryConfig
@@ -24,13 +29,14 @@ AgentCallable = Callable[..., Awaitable[object] | object]
 
 
 class AgentRuntime:
-    """Execution wrapper that enforces v0.1 runtime guardrails."""
+    """Execution wrapper that enforces runtime guardrails."""
 
     def __init__(
         self,
         *,
         budget: BudgetConfig | None = None,
         telemetry: TelemetryConfig | None = None,
+        circuit_breakers: CircuitBreakerConfig | None = None,
         pricing: Iterable[ModelPricing] | None = None,
         include_default_pricing: bool = True,
         openai_client: Any | None = None,
@@ -40,15 +46,27 @@ class AgentRuntime:
         self.budget_config = budget or BudgetConfig()
         self.telemetry_config = telemetry or TelemetryConfig()
         self.pricing_catalog = PricingCatalog(pricing, include_defaults=include_default_pricing)
+        self._circuit_breakers = CircuitBreakerRegistry(circuit_breakers)
         self._openai_client = openai_client
         self._anthropic_client = anthropic_client
         self._telemetry = Telemetry(self.telemetry_config, tracer=tracer)
+
+    def circuit_breaker_snapshots(self) -> dict[str, CircuitBreakerSnapshot]:
+        """Return current per-tool circuit breaker state."""
+
+        return self._circuit_breakers.snapshots()
+
+    def reset_circuit_breakers(self, tool_name: str | None = None) -> None:
+        """Reset all circuit breakers or one named tool breaker."""
+
+        self._circuit_breakers.reset(tool_name)
 
     async def run(self, agent: AgentCallable, *args: object, **kwargs: object) -> RunResult:
         budget = BudgetController(self.budget_config, self.pricing_catalog)
         ctx = RunContext(
             budget=budget,
             telemetry=self._telemetry,
+            circuit_breakers=self._circuit_breakers,
             openai_client=self._openai_client,
             anthropic_client=self._anthropic_client,
         )
@@ -159,5 +177,14 @@ async def _call_agent(
     return result
 
 
-def _json_safe_details(details: dict[str, Any]) -> dict[str, str]:
-    return {key: str(value) for key, value in details.items() if value is not None}
+JsonSafeDetail = str | int | float | bool | None
+
+
+def _json_safe_details(details: dict[str, Any]) -> dict[str, JsonSafeDetail]:
+    return {key: _json_safe_detail(value) for key, value in details.items() if value is not None}
+
+
+def _json_safe_detail(value: Any) -> JsonSafeDetail:
+    if isinstance(value, str | int | float | bool):
+        return value
+    return str(value)

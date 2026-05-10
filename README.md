@@ -2,14 +2,21 @@
 
 AgentRuntime is a production runtime guardrail for AI agents. It wraps model
 clients and tools with hard budget caps, timeout control, tool-call limits, and
-OpenTelemetry traces, so a runaway agent loop can be stopped before it burns
-through money.
+per-tool circuit breakers, with OpenTelemetry traces for every protected call.
+Runaway agent loops can be stopped before they burn through money, and flaky
+tools can be cut off before an agent retries them into a bigger incident.
 
-The v0.1 focus is intentionally sharp: **runaway cost prevention** for async
-Python agents using direct OpenAI and Anthropic wrappers.
+The v0.2 focus is intentionally sharp: **runtime guardrails for async Python
+agents** using direct OpenAI and Anthropic wrappers plus protected tool calls.
 
 ```python
-from agentruntime import AgentRuntime, BudgetConfig, RunContext
+from agentruntime import (
+    AgentRuntime,
+    BudgetConfig,
+    CircuitBreakerConfig,
+    CircuitBreakerPolicy,
+    RunContext,
+)
 
 runtime = AgentRuntime(
     budget=BudgetConfig(
@@ -17,7 +24,13 @@ runtime = AgentRuntime(
         token_limit=10_000,
         time_limit_seconds=60,
         tool_call_limit=20,
-    )
+    ),
+    circuit_breakers=CircuitBreakerConfig(
+        default=CircuitBreakerPolicy(
+            failure_threshold=3,
+            recovery_timeout_seconds=30,
+        )
+    ),
 )
 
 
@@ -44,6 +57,7 @@ clear trace. AgentRuntime puts an explicit execution layer around that loop:
 flowchart LR
     U["User code"] --> R["AgentRuntime"]
     R --> B["BudgetController"]
+    R --> CB["CircuitBreakerRegistry"]
     R --> T["OpenTelemetry spans"]
     R --> C["RunContext"]
     C --> O["Wrapped OpenAI client"]
@@ -72,6 +86,13 @@ uv run python examples/runaway_cost_prevention.py
 The demo uses a fake OpenAI-compatible client and intentionally loops forever.
 AgentRuntime stops it when the next model request would exceed the cost cap.
 
+```bash
+uv run python examples/tool_circuit_breaker.py
+```
+
+This demo uses a failing fake tool. AgentRuntime allows the first failures,
+opens the circuit breaker, then rejects the next call without invoking the tool.
+
 ## Live Provider Smoke Tests
 
 ```bash
@@ -94,10 +115,12 @@ uv run ruff format --check .
 uv run pyright
 ```
 
-## v0.1 Scope
+## v0.2 Scope
 
 - Async Python runtime with `src/` package layout.
 - Hard caps for cost, tokens, time, and tool calls.
+- Per-tool circuit breakers with closed, open, and half-open states.
+- Global default breaker policy plus per-tool overrides.
 - Direct wrappers for `AsyncOpenAI.responses.create`.
 - Direct wrappers for `AsyncAnthropic.messages.create`.
 - OpenTelemetry spans for agent runs, LLM calls, and tools.

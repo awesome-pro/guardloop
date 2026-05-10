@@ -1,6 +1,6 @@
 [project]
 name = "agentruntime"
-version = "0.1.0"
+version = "0.2.0"
 description = "A production runtime guardrail for AI agents: budget caps, timeouts, tool limits, and OpenTelemetry traces."
 readme = "README.md"
 requires-python = ">=3.11"

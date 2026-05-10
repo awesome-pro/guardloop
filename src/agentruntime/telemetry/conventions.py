@@ -22,6 +22,12 @@ AGENTRUNTIME_COST_USD = "agentruntime.budget.cost_usd"
 AGENTRUNTIME_ESTIMATED_COST_USD = "agentruntime.budget.estimated_cost_usd"
 AGENTRUNTIME_TOOL_NAME = "agentruntime.tool.name"
 AGENTRUNTIME_TOOL_CALLS_USED = "agentruntime.tool.calls_used"
+AGENTRUNTIME_CIRCUIT_BREAKER_STATE = "agentruntime.circuit_breaker.state"
+AGENTRUNTIME_CIRCUIT_BREAKER_FAILURE_COUNT = "agentruntime.circuit_breaker.failure_count"
+AGENTRUNTIME_CIRCUIT_BREAKER_BLOCKED = "agentruntime.circuit_breaker.blocked"
+AGENTRUNTIME_CIRCUIT_BREAKER_REMAINING_OPEN_SECONDS = (
+    "agentruntime.circuit_breaker.remaining_open_seconds"
+)
 AGENTRUNTIME_TERMINATED_REASON = "agentruntime.terminated_reason"
 
 
@@ -66,8 +72,27 @@ def llm_response_attributes(
     }
 
 
-def tool_attributes(*, tool_name: str, calls_used: int) -> Attributes:
-    return {
+def tool_attributes(
+    *,
+    tool_name: str,
+    calls_used: int,
+    breaker_state: str | None = None,
+    breaker_failure_count: int | None = None,
+    breaker_blocked: bool | None = None,
+    breaker_remaining_open_seconds: float | None = None,
+) -> Attributes:
+    attributes: Attributes = {
         AGENTRUNTIME_TOOL_NAME: tool_name,
         AGENTRUNTIME_TOOL_CALLS_USED: calls_used,
     }
+    if breaker_state is not None:
+        attributes[AGENTRUNTIME_CIRCUIT_BREAKER_STATE] = breaker_state
+    if breaker_failure_count is not None:
+        attributes[AGENTRUNTIME_CIRCUIT_BREAKER_FAILURE_COUNT] = breaker_failure_count
+    if breaker_blocked is not None:
+        attributes[AGENTRUNTIME_CIRCUIT_BREAKER_BLOCKED] = breaker_blocked
+    if breaker_remaining_open_seconds is not None:
+        attributes[AGENTRUNTIME_CIRCUIT_BREAKER_REMAINING_OPEN_SECONDS] = (
+            breaker_remaining_open_seconds
+        )
+    return attributes

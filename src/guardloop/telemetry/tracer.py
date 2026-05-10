@@ -8,8 +8,8 @@ from contextlib import contextmanager
 from opentelemetry import trace
 from opentelemetry.trace import Span, Status, StatusCode, Tracer
 
-from agentruntime.models import TelemetryConfig
-from agentruntime.telemetry.conventions import Attributes
+from guardloop.models import TelemetryConfig
+from guardloop.telemetry.conventions import Attributes
 
 _otel_configured = False
 
@@ -28,7 +28,7 @@ def configure_otel_export(config: TelemetryConfig) -> None:
         from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
     except ImportError as exc:
         raise RuntimeError(
-            "OpenTelemetry export requires the 'otel' extra: pip install agentruntime[otel]"
+            "OpenTelemetry export requires the 'otel' extra: pip install guardloop[otel]"
         ) from exc
 
     resource = Resource.create({"service.name": config.service_name})
@@ -52,7 +52,7 @@ class Telemetry:
         self.config = config
         if config.enabled:
             configure_otel_export(config)
-        self.tracer = tracer or trace.get_tracer("agentruntime")
+        self.tracer = tracer or trace.get_tracer("guardloop")
 
     @contextmanager
     def start_span(self, name: str, attributes: Attributes | None = None) -> Generator[Span]:

@@ -64,7 +64,7 @@ class TelemetryConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     enabled: bool = True
-    service_name: str = "agentruntime"
+    service_name: str = "guardloop"
     otlp_endpoint: str | None = None
     console_exporter: bool = False
 

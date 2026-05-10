@@ -1,4 +1,4 @@
-"""Main AgentRuntime entry point."""
+"""Main GuardLoop entry point."""
 
 from __future__ import annotations
 
@@ -9,26 +9,26 @@ from typing import Any
 
 from opentelemetry.trace import Span, Tracer
 
-from agentruntime.budget import BudgetController
-from agentruntime.circuit_breaker import (
+from guardloop.budget import BudgetController
+from guardloop.circuit_breaker import (
     CircuitBreakerConfig,
     CircuitBreakerRegistry,
     CircuitBreakerSnapshot,
 )
-from agentruntime.context import RunContext
-from agentruntime.exceptions import AgentRuntimeError
-from agentruntime.models import BudgetConfig, RunResult, TelemetryConfig
-from agentruntime.pricing import ModelPricing, PricingCatalog
-from agentruntime.telemetry.conventions import (
-    AGENTRUNTIME_TERMINATED_REASON,
+from guardloop.context import RunContext
+from guardloop.exceptions import GuardLoopError
+from guardloop.models import BudgetConfig, RunResult, TelemetryConfig
+from guardloop.pricing import ModelPricing, PricingCatalog
+from guardloop.telemetry.conventions import (
+    GUARDLOOP_TERMINATED_REASON,
     run_attributes,
 )
-from agentruntime.telemetry.tracer import Telemetry
+from guardloop.telemetry.tracer import Telemetry
 
 AgentCallable = Callable[..., Awaitable[object] | object]
 
 
-class AgentRuntime:
+class GuardLoop:
     """Execution wrapper that enforces runtime guardrails."""
 
     def __init__(
@@ -85,7 +85,7 @@ class AgentRuntime:
                 )
             except TimeoutError as exc:
                 self._telemetry.record_exception(span, exc)
-                span.set_attribute(AGENTRUNTIME_TERMINATED_REASON, "timeout")
+                span.set_attribute(GUARDLOOP_TERMINATED_REASON, "timeout")
                 return self._result(
                     budget=budget,
                     span=span,
@@ -96,9 +96,9 @@ class AgentRuntime:
                     error_message=f"Run exceeded time limit of "
                     f"{self.budget_config.time_limit_seconds:.3f}s.",
                 )
-            except AgentRuntimeError as exc:
+            except GuardLoopError as exc:
                 self._telemetry.record_exception(span, exc)
-                span.set_attribute(AGENTRUNTIME_TERMINATED_REASON, exc.terminated_reason)
+                span.set_attribute(GUARDLOOP_TERMINATED_REASON, exc.terminated_reason)
                 return self._result(
                     budget=budget,
                     span=span,
@@ -111,7 +111,7 @@ class AgentRuntime:
                 )
             except Exception as exc:
                 self._telemetry.record_exception(span, exc)
-                span.set_attribute(AGENTRUNTIME_TERMINATED_REASON, "error")
+                span.set_attribute(GUARDLOOP_TERMINATED_REASON, "error")
                 return self._result(
                     budget=budget,
                     span=span,

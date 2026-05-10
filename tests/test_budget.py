@@ -4,10 +4,10 @@ from decimal import Decimal
 
 import pytest
 
-from agentruntime.budget import BudgetController
-from agentruntime.exceptions import BudgetExceeded, TokenLimitExceeded, ToolCallLimitExceeded
-from agentruntime.models import BudgetConfig
-from agentruntime.pricing import ModelPricing, PricingCatalog
+from guardloop.budget import BudgetController
+from guardloop.exceptions import BudgetExceeded, TokenLimitExceeded, ToolCallLimitExceeded
+from guardloop.models import BudgetConfig
+from guardloop.pricing import ModelPricing, PricingCatalog
 
 
 def _catalog() -> PricingCatalog:

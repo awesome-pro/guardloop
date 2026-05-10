@@ -1,6 +1,6 @@
-# AgentRuntime v0.2 Design
+# GuardLoop v0.2 Design
 
-AgentRuntime is a wrapper, not an agent framework. A user passes an async agent
+GuardLoop is a wrapper, not an agent framework. A user passes an async agent
 callable to `runtime.run()`. The runtime creates a `RunContext` containing
 wrapped provider clients and tool helpers. The agent still owns its loop; the
 runtime owns enforcement.
@@ -17,7 +17,7 @@ runtime owns enforcement.
 
 ## Circuit Breakers
 
-Circuit breaker state lives on the `AgentRuntime` instance, so it persists
+Circuit breaker state lives on the `GuardLoop` instance, so it persists
 across multiple `runtime.run()` calls without becoming process-global. Each
 tool name gets an independent state machine:
 

@@ -10,7 +10,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from agentruntime.exceptions import CircuitBreakerOpen
+from guardloop.exceptions import CircuitBreakerOpen
 
 
 class CircuitBreakerState(StrEnum):
@@ -88,10 +88,10 @@ class _CircuitBreakerRecord:
 
 Clock = Callable[[], float]
 
-EVENT_OPENED = "agentruntime.circuit_breaker.opened"
-EVENT_REOPENED = "agentruntime.circuit_breaker.reopened"
-EVENT_HALF_OPENED = "agentruntime.circuit_breaker.half_opened"
-EVENT_CLOSED = "agentruntime.circuit_breaker.closed"
+EVENT_OPENED = "guardloop.circuit_breaker.opened"
+EVENT_REOPENED = "guardloop.circuit_breaker.reopened"
+EVENT_HALF_OPENED = "guardloop.circuit_breaker.half_opened"
+EVENT_CLOSED = "guardloop.circuit_breaker.closed"
 
 
 class CircuitBreakerRegistry:

@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from agentruntime.exceptions import ModelPricingMissing
+from guardloop.exceptions import ModelPricingMissing
 
 MILLION = Decimal("1000000")
 
@@ -110,7 +110,7 @@ class PricingCatalog:
         if key not in self._prices:
             raise ModelPricingMissing(
                 f"No pricing is configured for provider={provider!r}, model={model!r}. "
-                "Pass a custom ModelPricing entry to AgentRuntime(pricing=[...]).",
+                "Pass a custom ModelPricing entry to GuardLoop(pricing=[...]).",
                 details={"provider": provider, "model": model},
             )
         return self._prices[key]

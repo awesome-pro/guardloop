@@ -4,7 +4,7 @@ import asyncio
 from decimal import Decimal
 from typing import Protocol, cast
 
-from agentruntime import AgentRuntime, BudgetConfig, RunContext
+from guardloop import BudgetConfig, GuardLoop, RunContext
 from tests.fakes import FakeOpenAIClient, FakeOpenAIResponses
 
 
@@ -13,7 +13,7 @@ class HasOutputText(Protocol):
 
 
 async def test_successful_agent_run_returns_structured_result() -> None:
-    runtime = AgentRuntime(
+    runtime = GuardLoop(
         budget=BudgetConfig(cost_limit_usd="1.00", token_limit=10_000, time_limit_seconds=10),
         openai_client=FakeOpenAIClient(),
     )
@@ -37,7 +37,7 @@ async def test_successful_agent_run_returns_structured_result() -> None:
 
 async def test_runaway_fake_agent_stops_at_cost_cap() -> None:
     fake_responses = FakeOpenAIResponses(input_tokens=600, output_tokens=300)
-    runtime = AgentRuntime(
+    runtime = GuardLoop(
         budget=BudgetConfig(cost_limit_usd="0.02", token_limit=10_000, time_limit_seconds=10),
         openai_client=FakeOpenAIClient(fake_responses),
     )
@@ -59,7 +59,7 @@ async def test_runaway_fake_agent_stops_at_cost_cap() -> None:
 
 
 async def test_timeout_path_returns_timeout_reason() -> None:
-    runtime = AgentRuntime(budget=BudgetConfig(time_limit_seconds=0.01))
+    runtime = GuardLoop(budget=BudgetConfig(time_limit_seconds=0.01))
 
     async def slow_agent(_: RunContext) -> str:
         await asyncio.sleep(1)
@@ -73,7 +73,7 @@ async def test_timeout_path_returns_timeout_reason() -> None:
 
 
 async def test_tool_exception_is_captured_as_runtime_error() -> None:
-    runtime = AgentRuntime(budget=BudgetConfig(tool_call_limit=5))
+    runtime = GuardLoop(budget=BudgetConfig(tool_call_limit=5))
 
     def broken_tool() -> str:
         raise ValueError("tool exploded")

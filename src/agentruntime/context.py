@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 from agentruntime.budget import BudgetController
+from agentruntime.circuit_breaker import CircuitBreakerRegistry
 from agentruntime.providers.anthropic import WrappedAnthropicClient
 from agentruntime.providers.openai import WrappedOpenAIClient
 from agentruntime.telemetry.tracer import Telemetry
@@ -20,6 +21,7 @@ class RunContext:
         *,
         budget: BudgetController,
         telemetry: Telemetry,
+        circuit_breakers: CircuitBreakerRegistry,
         openai_client: Any | None = None,
         anthropic_client: Any | None = None,
     ) -> None:
@@ -29,7 +31,7 @@ class RunContext:
         self._raw_anthropic_client = anthropic_client
         self._openai: WrappedOpenAIClient | None = None
         self._anthropic: WrappedAnthropicClient | None = None
-        self._tools = ToolRunner(budget, telemetry)
+        self._tools = ToolRunner(budget, telemetry, circuit_breakers)
 
     @property
     def openai(self) -> WrappedOpenAIClient:

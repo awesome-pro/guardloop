@@ -45,6 +45,32 @@ class ToolCallLimitExceeded(AgentRuntimeError):
     terminated_reason = "tool_call_limit_exceeded"
 
 
+class CircuitBreakerOpen(AgentRuntimeError):
+    """Raised when a tool circuit breaker rejects a call."""
+
+    terminated_reason = "circuit_breaker_open"
+
+    def __init__(
+        self,
+        *,
+        tool_name: str,
+        state: str,
+        failure_count: int,
+        remaining_open_seconds: float,
+    ) -> None:
+        details = {
+            "tool_name": tool_name,
+            "state": state,
+            "failure_count": failure_count,
+            "remaining_open_seconds": remaining_open_seconds,
+        }
+        super().__init__(
+            f"Circuit breaker for tool '{tool_name}' is open for another "
+            f"{remaining_open_seconds:.3f}s.",
+            details=details,
+        )
+
+
 class TimeLimitExceeded(AgentRuntimeError):
     """Raised when the run exceeds the configured wall-clock cap."""
 

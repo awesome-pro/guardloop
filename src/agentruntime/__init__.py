@@ -1,9 +1,16 @@
 """AgentRuntime public API."""
 
+from agentruntime.circuit_breaker import (
+    CircuitBreakerConfig,
+    CircuitBreakerPolicy,
+    CircuitBreakerSnapshot,
+    CircuitBreakerState,
+)
 from agentruntime.context import RunContext
 from agentruntime.exceptions import (
     AgentRuntimeError,
     BudgetExceeded,
+    CircuitBreakerOpen,
     ModelPricingMissing,
     TimeLimitExceeded,
     TokenLimitExceeded,
@@ -19,6 +26,11 @@ __all__ = [
     "AgentRuntimeError",
     "BudgetConfig",
     "BudgetExceeded",
+    "CircuitBreakerConfig",
+    "CircuitBreakerOpen",
+    "CircuitBreakerPolicy",
+    "CircuitBreakerSnapshot",
+    "CircuitBreakerState",
     "ModelPricing",
     "ModelPricingMissing",
     "RunContext",

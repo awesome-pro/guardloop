@@ -4,7 +4,14 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from agentruntime import AgentRuntime, BudgetConfig, RunContext, TelemetryConfig
+from agentruntime import (
+    AgentRuntime,
+    BudgetConfig,
+    CircuitBreakerConfig,
+    CircuitBreakerPolicy,
+    RunContext,
+    TelemetryConfig,
+)
 from tests.fakes import FakeOpenAIClient
 
 
@@ -51,3 +58,49 @@ async def test_runtime_emits_agent_llm_and_tool_spans() -> None:
     assert tool_attributes is not None
     assert tool_attributes["agentruntime.tool.name"] == "formatter"
     assert tool_attributes["agentruntime.tool.calls_used"] == 1
+
+
+async def test_tool_spans_include_circuit_breaker_attributes() -> None:
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    tracer = provider.get_tracer("agentruntime-circuit-breaker-tests")
+
+    runtime = AgentRuntime(
+        budget=BudgetConfig(tool_call_limit=5),
+        telemetry=TelemetryConfig(enabled=True),
+        circuit_breakers=CircuitBreakerConfig(
+            default=CircuitBreakerPolicy(failure_threshold=1, recovery_timeout_seconds=30)
+        ),
+        tracer=tracer,
+    )
+
+    def flaky_tool() -> str:
+        raise ValueError("flaky")
+
+    async def agent(ctx: RunContext) -> str:
+        try:
+            await ctx.call_tool("flaky", flaky_tool)
+        except ValueError:
+            pass
+        return str(await ctx.call_tool("flaky", flaky_tool))
+
+    result = await runtime.run(agent)
+    spans = [span for span in exporter.get_finished_spans() if span.name == "tool_call flaky"]
+
+    assert result.terminated_reason == "circuit_breaker_open"
+    assert len(spans) == 2
+
+    failed_span = spans[0]
+    failed_attributes = failed_span.attributes
+    assert failed_attributes is not None
+    assert failed_attributes["agentruntime.circuit_breaker.state"] == "open"
+    assert failed_attributes["agentruntime.circuit_breaker.failure_count"] == 1
+    assert failed_attributes["agentruntime.circuit_breaker.blocked"] is False
+
+    blocked_span = spans[1]
+    blocked_attributes = blocked_span.attributes
+    assert blocked_attributes is not None
+    assert blocked_attributes["agentruntime.circuit_breaker.state"] == "open"
+    assert blocked_attributes["agentruntime.circuit_breaker.failure_count"] == 1
+    assert blocked_attributes["agentruntime.circuit_breaker.blocked"] is True

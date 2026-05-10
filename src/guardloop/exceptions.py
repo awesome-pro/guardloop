@@ -89,4 +89,38 @@ class TokenLimitMissing(GuardLoopError):
     terminated_reason = "token_limit_missing"
 
 
+class VerificationFailed(GuardLoopError):
+    """Raised in strict mode when output fails verification after all retries."""
+
+    terminated_reason = "verification_failed"
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        attempts: int,
+        feedback: list[str] | None = None,
+        verifier_name: str | None = None,
+    ) -> None:
+        details = {
+            "attempts": attempts,
+            "verifier_name": verifier_name,
+            "feedback": list(feedback or []),
+        }
+        super().__init__(message, details=details)
+
+
+class VerifierExecutionError(GuardLoopError):
+    """Raised when a verifier callable itself raises an exception."""
+
+    terminated_reason = "verifier_error"
+
+    def __init__(self, *, name: str, attempt: int) -> None:
+        details = {"verifier_name": name, "attempt": attempt}
+        super().__init__(
+            f"Verifier {name!r} raised an exception on attempt {attempt}.",
+            details=details,
+        )
+
+
 AgentRuntimeError = GuardLoopError

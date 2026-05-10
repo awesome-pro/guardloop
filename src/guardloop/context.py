@@ -14,7 +14,15 @@ from guardloop.tools import ToolRunner
 
 
 class RunContext:
-    """Runtime services available to an agent during one execution."""
+    """Runtime services available to an agent during one execution.
+
+    After a verifier rejects an attempt's output and retries remain, the runtime
+    appends the verifier's feedback to :attr:`retry_feedback` and re-invokes the
+    agent with the same ``*args`` and ``**kwargs``. Agents that want to
+    self-correct should read :attr:`retry_feedback` (for example, inject it into
+    the next prompt). Mutating :attr:`retry_feedback` or :attr:`attempt` has no
+    effect on the runtime.
+    """
 
     def __init__(
         self,
@@ -27,6 +35,8 @@ class RunContext:
     ) -> None:
         self.budget = budget
         self.telemetry = telemetry
+        self.retry_feedback: list[str] = []
+        self.attempt: int = 1
         self._raw_openai_client = openai_client
         self._raw_anthropic_client = anthropic_client
         self._openai: WrappedOpenAIClient | None = None

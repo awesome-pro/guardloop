@@ -10,7 +10,7 @@ tool calls.
 
 ## Current Status
 
-GuardLoop is currently published as version `0.2.0`.
+GuardLoop is currently published as version `0.3.0`.
 
 - GitHub repository: `awesome-pro/guardloop`
 - PyPI package: `guardloop`
@@ -26,9 +26,14 @@ The current portfolio story is:
 
 1. GuardLoop prevents runaway agent cost before an expensive LLM call is sent.
 2. GuardLoop prevents repeated calls to failing tools using circuit breakers.
-3. GuardLoop returns structured run results instead of leaving failures hidden.
-4. GuardLoop emits OpenTelemetry spans for agent runs, LLM calls, and tool calls.
-5. GuardLoop is typed, tested, packaged, released on GitHub, and published on PyPI.
+3. GuardLoop re-runs an agent against verifiers until the output passes, bounded by the shared budget.
+4. GuardLoop returns structured run results instead of leaving failures hidden.
+5. GuardLoop emits OpenTelemetry spans for agent runs, LLM calls, tool calls, and verifier runs.
+6. GuardLoop is typed, tested, packaged, released on GitHub, and published on PyPI.
+
+The four pillars from the original design — resource limits, circuit breakers,
+the self-healing verifier loop, and OpenTelemetry-native observability — are all
+implemented as of v0.3.
 
 ## Problem Being Solved
 
@@ -222,17 +227,82 @@ GuardLoop has a public exception hierarchy for controlled runtime stops:
 - `ModelPricingMissing`
 - `TokenLimitMissing`
 - `CircuitBreakerOpen`
+- `VerificationFailed` (only in verifier strict mode)
+- `VerifierExecutionError` (a verifier callable itself raised)
 
 The runtime catches these controlled exceptions and converts them into
 structured `RunResult` objects.
 
-### 7. Demos
+### 7. Verifier Retry Loop
+
+v0.3 adds the self-healing pillar: after an agent returns, GuardLoop runs a
+chain of verifiers against the output and, on rejection, feeds feedback back
+and retries the agent.
+
+A verifier is any callable — sync or async — with the signature
+`(output, VerifierContext) -> VerifierResult | bool | None`:
+
+```python
+from guardloop import GuardLoop, RunContext, VerifierConfig, VerifierContext, VerifierResult
+
+
+def no_todo(output: object, ctx: VerifierContext) -> VerifierResult:
+    if "TODO" in str(output):
+        return VerifierResult(passed=False, feedback="Replace the TODO placeholder.")
+    return VerifierResult(passed=True)
+
+
+runtime = GuardLoop(verifiers=[no_todo], verifier_config=VerifierConfig(max_retries=2))
+
+
+async def agent(ctx: RunContext, task: str) -> str:
+    # On a retry, ctx.retry_feedback holds the verifier's complaints, oldest first.
+    ...
+```
+
+Built-in rule-based verifier factories ship in `guardloop`:
+
+- `non_empty(*, allow_whitespace=False)`
+- `matches_regex(pattern, *, flags=0)`
+- `is_json_object(*, required_keys=())`
+
+Behavior:
+
+- Verifiers are configured per `GuardLoop` instance via `verifiers=[...]` or
+  `runtime.add_verifier(fn)`; there is no persistent verifier state across runs.
+- `VerifierChain` runs verifiers in order, fail-fast: the first failing verdict
+  wins. Anything that isn't a `VerifierResult` is normalized (`True`/`None` →
+  passed, `False` → failed with generated feedback).
+- `VerifierConfig` controls the loop: `max_retries` (extra agent invocations
+  after the first; `0` means no retry), `raise_on_failure` (strict mode),
+  `pass_feedback_to_agent`, and `enabled`.
+- The retry loop reuses the same `RunContext` and `BudgetController` across
+  attempts — cost, tokens, time, and tool calls accumulate, so a verifier loop
+  cannot bypass any cap, and the run's single `asyncio.timeout()` bounds the
+  whole loop.
+- `RunResult` reports `verification_passed: bool | None` (`None` if no verifiers
+  ran), `verification_attempts: int`, and `verification_feedback: list[str]`.
+- When retries are exhausted: by default `success=False`,
+  `terminated_reason="verification_failed"`, `output` still set to the last
+  attempt. With `raise_on_failure=True`, the runtime surfaces a
+  `VerificationFailed` instead (`output=None`, attempt count and feedback in
+  `metadata`). A verifier that itself raises becomes a `VerifierExecutionError`
+  (`terminated_reason="verifier_error"`) and is not retried.
+
+No-key demo:
+
+```bash
+uv run python examples/verifier_retry_loop.py
+```
+
+### 8. Demos
 
 No-key demos:
 
 ```bash
 uv run python examples/runaway_cost_prevention.py
 uv run python examples/tool_circuit_breaker.py
+uv run python examples/verifier_retry_loop.py
 ```
 
 The runaway-cost demo proves that GuardLoop stops an agent before the next LLM
@@ -240,6 +310,10 @@ request would exceed the configured budget.
 
 The circuit-breaker demo proves that GuardLoop lets a flaky tool fail up to the
 configured threshold, then rejects the next attempt without invoking the tool.
+
+The verifier-retry demo proves that GuardLoop rejects a bad answer, hands the
+verifier's feedback back through `ctx.retry_feedback`, and accepts the corrected
+answer on a later attempt.
 
 Optional live provider demos:
 
@@ -259,6 +333,7 @@ flowchart LR
     R --> C["RunContext"]
     R --> B["BudgetController"]
     R --> CB["CircuitBreakerRegistry"]
+    R --> V["VerifierChain"]
     R --> T["Telemetry"]
     C --> O["Wrapped OpenAI client"]
     C --> AN["Wrapped Anthropic client"]
@@ -270,14 +345,17 @@ flowchart LR
     O --> T
     AN --> T
     TO --> T
+    V --> T
+    V -. "feedback on retry" .-> C
 ```
 
 Important modules:
 
-- `src/guardloop/runtime.py`: main `GuardLoop` execution wrapper.
+- `src/guardloop/runtime.py`: main `GuardLoop` execution wrapper and retry loop.
 - `src/guardloop/context.py`: `RunContext` passed into user agents.
 - `src/guardloop/budget.py`: cost, token, time, and tool-call enforcement.
 - `src/guardloop/circuit_breaker.py`: per-tool circuit breaker state machines.
+- `src/guardloop/verifier.py`: verifier types, the `VerifierChain` runner, and built-in verifiers.
 - `src/guardloop/providers/openai.py`: OpenAI Responses wrapper.
 - `src/guardloop/providers/anthropic.py`: Anthropic Messages wrapper.
 - `src/guardloop/tools.py`: protected sync/async tool execution.
@@ -300,6 +378,12 @@ Current primary exports:
 - `CircuitBreakerPolicy`
 - `CircuitBreakerState`
 - `CircuitBreakerSnapshot`
+- `Verifier`
+- `VerifierResult`
+- `VerifierContext`
+- `VerifierConfig`
+- `VerifierChain`
+- `non_empty`, `matches_regex`, `is_json_object` (built-in verifier factories)
 - `GuardLoopError`
 - `BudgetExceeded`
 - `TokenLimitExceeded`
@@ -308,6 +392,8 @@ Current primary exports:
 - `ModelPricingMissing`
 - `TokenLimitMissing`
 - `CircuitBreakerOpen`
+- `VerificationFailed`
+- `VerifierExecutionError`
 
 Compatibility aliases:
 
@@ -333,7 +419,15 @@ Current test coverage includes:
 - circuit breaker open/closed/half-open transitions,
 - per-tool circuit breaker overrides,
 - circuit breaker reset helpers,
-- OpenTelemetry span attributes.
+- verifier passes / fails-then-passes / exhausts retries,
+- `max_retries=0`, fail-fast chains, sync and async verifiers,
+- bool-shorthand verdicts and generated feedback,
+- verifier exceptions surface as `verifier_error`,
+- budget shared across retry attempts (cannot be bypassed),
+- run timeout bounds the whole retry loop,
+- `ctx.retry_feedback` visibility and `verification_feedback` recording,
+- strict mode, disabled verifiers, built-in verifiers,
+- OpenTelemetry span attributes (LLM, tool, and `verifier_run` spans).
 
 Quality gates:
 
@@ -344,7 +438,7 @@ uv run ruff check .
 uv run ruff format --check .
 uv run pyright
 uv build
-uvx twine check dist/guardloop-0.2.0.tar.gz dist/guardloop-0.2.0-py3-none-any.whl
+uvx twine check dist/guardloop-0.3.0.tar.gz dist/guardloop-0.3.0-py3-none-any.whl
 ```
 
 ## Packaging and Release State
@@ -352,10 +446,11 @@ uvx twine check dist/guardloop-0.2.0.tar.gz dist/guardloop-0.2.0-py3-none-any.wh
 GuardLoop is configured and published as a real Python package.
 
 - PyPI project: `guardloop`
-- GitHub release: `v0.2.0`
+- Latest release: `v0.3.0`
 - Build artifacts: wheel and source distribution
 - Trusted Publishing: GitHub Actions to PyPI
 - GitHub environment: `pypi`
+- Changelog: `CHANGELOG.md`
 
 Publishing workflow:
 
@@ -369,39 +464,30 @@ Publishing workflow:
 
 GuardLoop is intentionally focused. It does not yet include:
 
-- verifier/retry loops for validating final outputs,
+- LLM-based verifier ergonomics (budget-tracked clients on `VerifierContext`),
 - LangGraph adapter,
 - OpenAI Agents SDK adapter,
 - persistent circuit breaker state in Redis/database,
 - provider-level circuit breakers,
+- loop detection (repeated `tool + args`),
 - UI dashboard,
 - Jaeger/Phoenix trace screenshots,
 - automated docs site,
 - semantic versioning automation.
 
-These are good future layers, but v0.2 is already a complete portfolio-grade
-library foundation.
+These are good future layers, but v0.3 already implements all four pillars and
+is a complete portfolio-grade library foundation.
 
 ## Future Goals
 
-### v0.3: Verifier Retry Loop
+### v0.3: Verifier Retry Loop — delivered
 
-Goal: let users attach verifiers that can accept or reject an agent result and
-optionally trigger a bounded retry.
-
-Planned capabilities:
-
-- deterministic verifier functions,
-- optional LLM-based verifier interface,
-- retry budget separate from main loop budget,
-- structured verifier result model,
-- final `RunResult` metadata showing verifier decisions.
-
-Portfolio value:
-
-- demonstrates agent reliability,
-- shows controlled self-correction,
-- makes the project more than a wrapper around providers.
+Shipped: deterministic and async verifier callables, a fail-fast `VerifierChain`,
+built-in rule-based verifiers, a bounded retry loop that reuses the same budget
+and run timeout, `ctx.retry_feedback`, structured `RunResult.verification_*`
+fields, an opt-in strict mode, and `verifier_run` OpenTelemetry spans. The one
+ergonomic gap deferred to later: budget-tracked LLM clients on `VerifierContext`
+for LLM-based verifiers (today an LLM verifier must close over its own client).
 
 ### v0.4: Framework Adapters
 
@@ -443,10 +529,11 @@ Goal: support longer-lived runtime state and reusable policy configuration.
 
 Possible capabilities:
 
-- pluggable state backends for circuit breakers,
-- YAML/TOML policy loading,
-- organization/team default policies,
-- model pricing update workflow.
+- pluggable state backends for circuit breakers (Redis/SQL),
+- YAML/TOML policy loading and organization/team default policies,
+- loop detection (repeated `tool + args` within a run),
+- multi-model pricing (Gemini, Groq, Mistral) and a model pricing update workflow,
+- LiteLLM integration for one wrapping path across providers.
 
 Portfolio value:
 
@@ -463,9 +550,10 @@ Potential requirements:
 - stronger compatibility tests,
 - more provider models and pricing coverage,
 - richer examples,
-- changelog,
-- docs site,
-- release checklist.
+- `CHANGELOG.md` as the source of truth (started at v0.3),
+- auto-published docs site,
+- release checklist,
+- streaming-response accounting and Anthropic token-counting API.
 
 ## Interview Talking Points
 
@@ -475,10 +563,11 @@ GuardLoop is a production runtime layer for AI agents. Instead of building
 another agent framework, it wraps the risky parts of an agent loop: model calls
 and tool calls. It enforces cost, token, time, and tool-call limits; stops
 runaway agent loops before sending expensive requests; opens circuit breakers
-around flaky tools; and emits OpenTelemetry traces so failures are observable.
-It is packaged as a typed Python library, published on PyPI, tested with fake
-clients, and designed to integrate with frameworks later rather than depending
-on one framework from the start.
+around flaky tools; re-runs the agent against verifiers — feeding their feedback
+back in — until the output passes, all under the same shared budget; and emits
+OpenTelemetry traces so failures are observable. It is packaged as a typed
+Python library, published on PyPI, tested with fake clients, and designed to
+integrate with frameworks later rather than depending on one from the start.
 
 Good questions to be ready for:
 
@@ -493,16 +582,18 @@ Good questions to be ready for:
 
 ## Recommended Next Step
 
-The best next engineering milestone is v0.3: verifier retry loop.
+All four pillars are implemented. The best next engineering milestone is v0.4:
+framework adapters — slot GuardLoop *under* LangGraph and the OpenAI Agents SDK
+without changing the core runtime model.
 
 Build it narrowly:
 
-- add a `Verifier` protocol,
-- add deterministic verifier examples first,
-- return verifier decisions in `RunResult.metadata`,
-- cap retries with the existing budget/time model,
-- add a no-key demo where a bad answer is rejected and corrected.
+- start with a LangGraph adapter: consult the `BudgetController` before each LLM
+  node, inject a `RunContext` so the existing wrappers apply, and map the graph's
+  tools onto `ToolRunner`,
+- ship it behind an optional `[langgraph]` extra so core stays dependency-light,
+- add an `examples/langgraph_guarded.py` that wraps a real graph,
+- then repeat the pattern for the OpenAI Agents SDK `Runner`.
 
-That would make GuardLoop feel like a complete agent reliability toolkit:
-budgets prevent runaway cost, circuit breakers protect external tools, and
-verifiers protect final answer quality.
+That proves the "wrapper, not framework" thesis: the same budget / circuit
+breaker / verifier / telemetry envelope works around someone else's agent.

@@ -1,7 +1,7 @@
 [project]
 name = "guardloop"
-version = "0.2.0"
-description = "A production runtime guardrail for AI agents: budget caps, timeouts, tool limits, and OpenTelemetry traces."
+version = "0.3.0"
+description = "A production runtime guardrail for AI agents: budget caps, timeouts, tool limits, circuit breakers, verifier retries, and OpenTelemetry traces."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -22,7 +22,10 @@ keywords = [
     "mlops",
     "openai",
     "opentelemetry",
+    "retry",
     "runtime-guardrails",
+    "self-healing",
+    "verifier",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -54,7 +57,7 @@ Homepage = "https://github.com/awesome-pro/guardloop"
 Documentation = "https://github.com/awesome-pro/guardloop#readme"
 Repository = "https://github.com/awesome-pro/guardloop"
 Issues = "https://github.com/awesome-pro/guardloop/issues"
-Changelog = "https://github.com/awesome-pro/guardloop/releases"
+Changelog = "https://github.com/awesome-pro/guardloop/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 otel = [

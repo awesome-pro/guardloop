@@ -67,11 +67,25 @@ flowchart LR
 
 ## Install
 
+After the first PyPI release is published:
+
+```bash
+pip install agentruntime
+```
+
+For local development:
+
 ```bash
 uv sync
 ```
 
 Optional OpenTelemetry exporters are available through the `otel` extra:
+
+```bash
+pip install "agentruntime[otel]"
+```
+
+For local development with the extra:
 
 ```bash
 uv sync --extra otel

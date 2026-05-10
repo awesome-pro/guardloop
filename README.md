@@ -65,6 +65,12 @@ flowchart LR
     C --> W["Wrapped tools"]
 ```
 
+## Project Guide
+
+For a deeper walkthrough of what has been implemented, how the code is
+organized, and what the next roadmap goals are, read
+[docs/project-overview.md](docs/project-overview.md).
+
 ## Install
 
 Install from PyPI:

@@ -1,34 +1,28 @@
 # Publishing GuardLoop to PyPI
 
-GuardLoop is configured for PyPI Trusted Publishing from GitHub Actions.
-This avoids long-lived PyPI API tokens and gives GitHub a visible `pypi`
-deployment in the repository sidebar after a successful publish.
+GuardLoop is published on PyPI at https://pypi.org/project/guardloop/.
+Publishing uses PyPI Trusted Publishing from GitHub Actions. This avoids
+long-lived PyPI API tokens and gives GitHub a visible `pypi` deployment in the
+repository sidebar after a successful publish.
 
-## One-Time PyPI Setup
+## Trusted Publisher Setup
 
-Create or log in to your PyPI account at https://pypi.org. The package name is
-`guardloop`.
+The trusted publisher configuration should stay aligned with:
 
-Because the project does not exist on PyPI yet, add a pending trusted publisher:
-
-- Go to your PyPI account sidebar and open **Publishing**.
-- Add a new GitHub pending publisher.
-- Use owner `awesome-pro`.
-- Use repository `guardloop`.
-- Use workflow filename `publish-pypi.yml`.
-- Leave environment blank so PyPI shows `Environment name: (Any)`.
-- Use project name `guardloop`.
-
-Pending publishers do not reserve the package name until the first successful
-publish, so run the first publish soon after creating it.
+- PyPI project name: `guardloop`
+- GitHub owner: `awesome-pro`
+- GitHub repository: `guardloop`
+- Workflow filename: `publish-pypi.yml`
+- PyPI environment name: blank / `(Any)`
 
 The GitHub workflow still uses a GitHub environment named `pypi` so the
 repository sidebar shows a clean `pypi` deployment after publishing. A PyPI
 publisher configured with `Environment name: (Any)` accepts that workflow.
 
-## First Publish
+## Manual Publish
 
-After the pending publisher exists on PyPI, run the GitHub workflow manually:
+PyPI versions are immutable. Before publishing a new release, bump `version` in
+`pyproject.toml`, build and test locally, then run:
 
 ```bash
 gh workflow run publish-pypi.yml --repo awesome-pro/guardloop --ref main
@@ -40,7 +34,7 @@ Then watch it:
 gh run list --repo awesome-pro/guardloop --workflow publish-pypi.yml --limit 1
 ```
 
-When the run succeeds, PyPI should show:
+When the run succeeds, PyPI should show the new version at:
 
 ```text
 https://pypi.org/project/guardloop/
@@ -60,6 +54,7 @@ For future versions:
 2. Build and test locally.
 3. Commit and tag the release.
 4. Create a GitHub release.
+5. Run the publish workflow if the release event did not already trigger it.
 
 The `Publish to PyPI` workflow also runs automatically when a GitHub release is
 published, so normal releases will publish to PyPI without a manual workflow

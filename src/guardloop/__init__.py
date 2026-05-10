@@ -16,10 +16,22 @@ from guardloop.exceptions import (
     TokenLimitExceeded,
     TokenLimitMissing,
     ToolCallLimitExceeded,
+    VerificationFailed,
+    VerifierExecutionError,
 )
 from guardloop.models import BudgetConfig, RunResult, TelemetryConfig
 from guardloop.pricing import ModelPricing
 from guardloop.runtime import GuardLoop
+from guardloop.verifier import (
+    Verifier,
+    VerifierChain,
+    VerifierConfig,
+    VerifierContext,
+    VerifierResult,
+    is_json_object,
+    matches_regex,
+    non_empty,
+)
 
 AgentRuntime = GuardLoop
 AgentRuntimeError = GuardLoopError
@@ -45,4 +57,14 @@ __all__ = [
     "TokenLimitExceeded",
     "TokenLimitMissing",
     "ToolCallLimitExceeded",
+    "VerificationFailed",
+    "Verifier",
+    "VerifierChain",
+    "VerifierConfig",
+    "VerifierContext",
+    "VerifierExecutionError",
+    "VerifierResult",
+    "is_json_object",
+    "matches_regex",
+    "non_empty",
 ]

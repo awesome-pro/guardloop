@@ -83,6 +83,9 @@ class RunResult(BaseModel):
     output_tokens: int = 0
     duration_seconds: float = 0.0
     tool_calls: int = 0
+    verification_passed: bool | None = None
+    verification_attempts: int = 0
+    verification_feedback: list[str] = Field(default_factory=list)
     trace_id: str | None = None
     terminated_reason: str | None = None
     error_type: str | None = None

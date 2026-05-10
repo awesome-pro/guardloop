@@ -28,6 +28,12 @@ GUARDLOOP_CIRCUIT_BREAKER_BLOCKED = "guardloop.circuit_breaker.blocked"
 GUARDLOOP_CIRCUIT_BREAKER_REMAINING_OPEN_SECONDS = (
     "guardloop.circuit_breaker.remaining_open_seconds"
 )
+GUARDLOOP_VERIFIER_NAME = "guardloop.verifier.name"
+GUARDLOOP_VERIFIER_PASSED = "guardloop.verifier.passed"
+GUARDLOOP_VERIFIER_ATTEMPT = "guardloop.verifier.attempt"
+GUARDLOOP_VERIFIER_MAX_ATTEMPTS = "guardloop.verifier.max_attempts"
+GUARDLOOP_VERIFICATION_PASSED = "guardloop.verification.passed"
+GUARDLOOP_VERIFICATION_ATTEMPTS = "guardloop.verification.attempts"
 GUARDLOOP_TERMINATED_REASON = "guardloop.terminated_reason"
 
 
@@ -95,4 +101,28 @@ def tool_attributes(
         attributes[GUARDLOOP_CIRCUIT_BREAKER_REMAINING_OPEN_SECONDS] = (
             breaker_remaining_open_seconds
         )
+    return attributes
+
+
+def verifier_attributes(
+    *,
+    name: str,
+    attempt: int,
+    max_attempts: int,
+    passed: bool | None = None,
+) -> Attributes:
+    attributes: Attributes = {
+        GUARDLOOP_VERIFIER_NAME: name,
+        GUARDLOOP_VERIFIER_ATTEMPT: attempt,
+        GUARDLOOP_VERIFIER_MAX_ATTEMPTS: max_attempts,
+    }
+    if passed is not None:
+        attributes[GUARDLOOP_VERIFIER_PASSED] = passed
+    return attributes
+
+
+def verification_summary_attributes(*, passed: bool | None, attempts: int) -> Attributes:
+    attributes: Attributes = {GUARDLOOP_VERIFICATION_ATTEMPTS: attempts}
+    if passed is not None:
+        attributes[GUARDLOOP_VERIFICATION_PASSED] = passed
     return attributes

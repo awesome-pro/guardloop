@@ -613,7 +613,7 @@ GuardLoop is intentionally focused. It does not yet include:
 - provider-level circuit breakers,
 - loop detection (repeated `tool + args`),
 - UI dashboard,
-- Jaeger/Phoenix trace screenshots,
+- an OpenTelemetry metrics layer and a packaged trace-viewer stack (Jaeger / Phoenix),
 - automated docs site,
 - semantic versioning automation.
 
@@ -661,23 +661,27 @@ Portfolio value:
 - makes GuardLoop easier to demonstrate with real agent workflows,
 - proves the core design is framework-agnostic.
 
-### v0.5: Observability Polish
+### v0.5: Observability Depth
 
-Goal: turn the telemetry foundation into strong portfolio artifacts.
+Goal: extend the OpenTelemetry layer past spans and make the whole trace tree
+inspectable end to end.
 
 Planned capabilities:
 
-- Jaeger trace screenshots,
-- Phoenix trace screenshots,
-- example trace walkthrough,
-- demo video script,
-- blog-post style architecture writeup.
+- an OpenTelemetry metrics provider (counters/histograms for cost, tokens, tool
+  calls, and verifier attempts, alongside the existing spans),
+- per-attempt `agent_attempt` span nesting so a verifier retry loop reads as a
+  tree rather than flat sibling LLM calls,
+- a one-command `docker-compose` stack (Jaeger + Arize Phoenix) the no-key demos
+  export to,
+- an architecture write-up plus a recorded walkthrough of the
+  `agent_run -> llm_call -> tool_call -> verifier_run` tree as the proof artifact.
 
 Portfolio value:
 
-- gives recruiters/interviewers visual proof,
-- makes the project easier to understand quickly,
-- highlights production observability skills.
+- demonstrates production observability beyond "we emit traces" — metrics, span
+  hierarchy, and a working backend,
+- produces one concrete, inspectable artifact (the trace tree) a reviewer can look at.
 
 ### v0.6: Persistence and Team Settings
 
@@ -746,22 +750,19 @@ Good questions to be ready for:
 
 All four pillars plus two framework adapters (LangGraph in v0.4.0, the OpenAI
 Agents SDK in v0.4.1) are implemented. The best next engineering milestone is
-**v0.5: observability polish** — no new core behaviour, just turning the
-OpenTelemetry foundation into portfolio artifacts.
+**v0.5: observability depth** — extending the OpenTelemetry layer past spans.
 
 Build it narrowly:
 
-- add a `docker-compose.yml` running Jaeger + Arize Phoenix, plus a script that
+- add an OpenTelemetry metrics provider (`Counter` / `Histogram` for cost,
+  tokens, tool calls, and verifier attempts) alongside the existing spans,
+- land the deferred per-attempt `agent_attempt {n}` span nesting so a verifier
+  retry loop reads as a tree, not a flat list of sibling LLM calls,
+- add a `docker-compose.yml` running Jaeger + Arize Phoenix plus a script that
   runs the no-key demos (including both adapter demos) against it,
-- capture trace screenshots in `docs/traces/` showing `agent_run -> llm_call ->
-  tool_call -> verifier_run`,
-- write `docs/blog-architecture.md` (the "$437 overnight" prevented scenario) and
-  a short demo-video script,
-- land the deferred per-attempt `agent_attempt {n}` span nesting so screenshots
-  show per-retry structure,
-- optionally add an OpenTelemetry metrics layer (`Counter` / `Histogram` for
-  cost / tokens / tool-calls / verifier-attempts), and bump `Development Status`
-  from `3 - Alpha` to `4 - Beta`.
+- write the architecture write-up and capture a walkthrough of the
+  `agent_run -> llm_call -> tool_call -> verifier_run` tree as the proof artifact,
+- bump `Development Status` from `3 - Alpha` to `4 - Beta`.
 
 After v0.5: v0.6 (persistence + team policies + loop detection + multi-model
 pricing + LiteLLM, with the deferred `failure_error_function`-wrapping option for
@@ -769,5 +770,4 @@ the OpenAI Agents adapter's breaker as a candidate) → v1.0 (stable API, docs
 site, release checklist, hardened token story). The "wrapper, not framework"
 thesis is already proven — the same budget / circuit breaker / verifier /
 telemetry envelope works around two different agent frameworks with no change to
-the core runtime — so the remaining work is about depth and polish, not new
-shape.
+the core runtime — so the remaining work is about depth, not new shape.

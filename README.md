@@ -240,6 +240,8 @@ uv run python examples/runaway_cost_prevention.py
 The demo uses a fake OpenAI-compatible client and intentionally loops forever.
 GuardLoop stops it when the next model request would exceed the cost cap.
 
+![GuardLoop terminal output: a runaway agent loop stopped before the next LLM call, with the RunResult showing success false and terminated_reason set to the cost cap](https://raw.githubusercontent.com/awesome-pro/guardloop/main/docs/media/runaway-cost-demo.png)
+
 ```bash
 uv run python examples/tool_circuit_breaker.py
 ```
@@ -322,7 +324,7 @@ uv run pyright
 - v0.3: verify-fix-retry loop. ✅
 - v0.4: LangGraph adapter. ✅
 - v0.4.1: OpenAI Agents SDK adapter. ✅
-- v0.5: Jaeger/Phoenix trace screenshots, demo video, and blog post.
+- v0.5: OpenTelemetry metrics (cost / tokens / tool-calls / retries), per-attempt span nesting, one-command Jaeger + Phoenix stack.
 - v0.6: persistent breaker state, YAML/TOML policy, multi-model pricing, loop detection.
 - v1.0: stable API, changelog, docs site, release checklist.
 

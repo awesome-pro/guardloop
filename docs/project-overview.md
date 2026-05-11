@@ -10,7 +10,7 @@ tool calls.
 
 ## Current Status
 
-GuardLoop is currently published as version `0.3.0`.
+GuardLoop is currently published as version `0.4.0`.
 
 - GitHub repository: `awesome-pro/guardloop`
 - PyPI package: `guardloop`
@@ -29,11 +29,13 @@ The current portfolio story is:
 3. GuardLoop re-runs an agent against verifiers until the output passes, bounded by the shared budget.
 4. GuardLoop returns structured run results instead of leaving failures hidden.
 5. GuardLoop emits OpenTelemetry spans for agent runs, LLM calls, tool calls, and verifier runs.
-6. GuardLoop is typed, tested, packaged, released on GitHub, and published on PyPI.
+6. GuardLoop slots *under* an existing LangGraph graph (`guarded_graph`) without rewriting it.
+7. GuardLoop is typed, tested, packaged, released on GitHub, and published on PyPI.
 
 The four pillars from the original design — resource limits, circuit breakers,
 the self-healing verifier loop, and OpenTelemetry-native observability — are all
-implemented as of v0.3.
+implemented as of v0.3. v0.4 adds the first framework adapter (LangGraph), which
+applies all four pillars inside a third-party agent graph.
 
 ## Problem Being Solved
 
@@ -295,7 +297,53 @@ No-key demo:
 uv run python examples/verifier_retry_loop.py
 ```
 
-### 8. Demos
+### 8. LangGraph Adapter
+
+v0.4 adds the first framework adapter. LangGraph nodes call LangChain chat
+models, which do not flow through GuardLoop's `ctx.openai` / `ctx.anthropic`
+wrappers, so the adapter binds a LangChain callback handler to the `RunContext`
+instead — running the pre-flight budget check before each LLM call, recording
+usage afterward, and routing tool calls through the per-tool circuit breaker and
+the tool-call budget. The result: cost / token / time caps, breakers, and
+`llm_call` / `tool_call` OpenTelemetry spans all apply *inside* a LangGraph run,
+and the verifier retry loop wraps the whole graph run.
+
+```python
+from langchain_core.messages import HumanMessage
+
+from guardloop import GuardLoop, BudgetConfig
+from guardloop.adapters.langgraph import guarded_graph
+
+runtime = GuardLoop(budget=BudgetConfig(cost_limit_usd="0.10", token_limit=10_000))
+agent = guarded_graph(my_compiled_graph, input_key="messages")
+result = await runtime.run(agent, {"messages": [HumanMessage("...")]})
+```
+
+`guarded_graph(compiled_graph, *, input_key="messages", reserved_output_tokens=1024,
+feedback_to_state=None, output_from_state=None, config=None)` returns a
+GuardLoop-compatible agent, so you keep calling `runtime.run(...)` as usual. Notes:
+
+- `reserved_output_tokens` is the output-token reservation used by the pre-flight
+  budget check, because LangChain chat models often omit `max_tokens`.
+- On a verifier retry, the feedback is injected into a copy of the input state
+  (`feedback_to_state` to customise); the original state is never mutated.
+- Tool-side enforcement is as hard as the graph's own error handling — a
+  `ToolNode` with the default `handle_tool_errors=True` turns a budget/breaker
+  exception into a `ToolMessage` (the breaker still records it; LLM-side caps
+  still terminate the run). Use `handle_tool_errors=False` for hard tool-call
+  enforcement. Streaming (`astream` / `astream_events`) is out of scope for v0.4.
+- The adapter lives in `guardloop.adapters.langgraph` behind the `langgraph`
+  extra (`pip install "guardloop[langgraph]"`); it exports `guarded_graph` and
+  `GuardLoopCallbackHandler`. It is intentionally not re-exported from the
+  top-level `guardloop` package, so `import guardloop` stays dependency-light.
+
+No-key demo:
+
+```bash
+uv run python examples/langgraph_guarded.py
+```
+
+### 9. Demos
 
 No-key demos:
 
@@ -303,6 +351,7 @@ No-key demos:
 uv run python examples/runaway_cost_prevention.py
 uv run python examples/tool_circuit_breaker.py
 uv run python examples/verifier_retry_loop.py
+uv run python examples/langgraph_guarded.py
 ```
 
 The runaway-cost demo proves that GuardLoop stops an agent before the next LLM
@@ -314,6 +363,10 @@ configured threshold, then rejects the next attempt without invoking the tool.
 The verifier-retry demo proves that GuardLoop rejects a bad answer, hands the
 verifier's feedback back through `ctx.retry_feedback`, and accepts the corrected
 answer on a later attempt.
+
+The LangGraph demo proves that the budget / telemetry envelope applies inside a
+real LangGraph graph: the first run succeeds with cost and tokens recorded, and
+the second run is stopped before the model call by a tiny token budget.
 
 Optional live provider demos:
 
@@ -329,6 +382,7 @@ uv run python examples/live_anthropic_basic.py
 
 ```mermaid
 flowchart LR
+    LG["LangGraph graph"] -. "guarded_graph(...)" .-> A
     A["User agent function"] --> R["GuardLoop.run()"]
     R --> C["RunContext"]
     R --> B["BudgetController"]
@@ -338,13 +392,17 @@ flowchart LR
     C --> O["Wrapped OpenAI client"]
     C --> AN["Wrapped Anthropic client"]
     C --> TO["ToolRunner"]
+    C --> H["GuardLoopCallbackHandler (LangChain)"]
     O --> B
     AN --> B
     TO --> B
     TO --> CB
+    H --> B
+    H --> CB
     O --> T
     AN --> T
     TO --> T
+    H --> T
     V --> T
     V -. "feedback on retry" .-> C
 ```
@@ -352,13 +410,14 @@ flowchart LR
 Important modules:
 
 - `src/guardloop/runtime.py`: main `GuardLoop` execution wrapper and retry loop.
-- `src/guardloop/context.py`: `RunContext` passed into user agents.
+- `src/guardloop/context.py`: `RunContext` passed into user agents (incl. `circuit_breakers`).
 - `src/guardloop/budget.py`: cost, token, time, and tool-call enforcement.
 - `src/guardloop/circuit_breaker.py`: per-tool circuit breaker state machines.
 - `src/guardloop/verifier.py`: verifier types, the `VerifierChain` runner, and built-in verifiers.
 - `src/guardloop/providers/openai.py`: OpenAI Responses wrapper.
 - `src/guardloop/providers/anthropic.py`: Anthropic Messages wrapper.
 - `src/guardloop/tools.py`: protected sync/async tool execution.
+- `src/guardloop/adapters/langgraph.py`: LangGraph adapter — `guarded_graph` and `GuardLoopCallbackHandler` (behind the `langgraph` extra).
 - `src/guardloop/telemetry/`: OpenTelemetry setup and attribute conventions.
 - `src/guardloop/models.py`: Pydantic config/result models.
 - `src/guardloop/pricing.py`: model pricing catalog and custom pricing support.
@@ -400,6 +459,15 @@ Compatibility aliases:
 - `AgentRuntime = GuardLoop`
 - `AgentRuntimeError = GuardLoopError`
 
+Framework adapters are *not* part of the top-level `guardloop` namespace (so
+`import guardloop` pulls only the base dependencies). Import them from their
+submodule, behind the matching extra — for LangGraph:
+
+```python
+# pip install "guardloop[langgraph]"
+from guardloop.adapters.langgraph import guarded_graph, GuardLoopCallbackHandler
+```
+
 ## Testing and Quality
 
 Current test coverage includes:
@@ -427,18 +495,30 @@ Current test coverage includes:
 - run timeout bounds the whole retry loop,
 - `ctx.retry_feedback` visibility and `verification_feedback` recording,
 - strict mode, disabled verifiers, built-in verifiers,
-- OpenTelemetry span attributes (LLM, tool, and `verifier_run` spans).
+- OpenTelemetry span attributes (LLM, tool, and `verifier_run` spans),
+- LangGraph adapter: happy path (usage + output recorded), sync- and async-node
+  graphs, budget cap tripping inside the graph, `reserved_output_tokens` pre-flight,
+  tool-call limit inside a `ToolNode` loop, circuit breaker opening across runs,
+  verifier loop wrapping the graph with feedback injection, caller state not
+  mutated, custom `feedback_to_state` / `output_from_state` hooks, `llm_call` /
+  `tool_call` spans parented under `agent_run`, model errors propagating with no
+  recorded usage, and an unresolvable model name producing a clear error.
+
+CI (`.github/workflows/ci.yml`) runs the lint / type-check / test gates on every
+push to `main` and every pull request, across Python 3.11, 3.12, and 3.13.
 
 Quality gates:
 
 ```bash
+uv sync --all-extras --group dev
 uv run pytest
 uv run pytest --cov=guardloop
 uv run ruff check .
 uv run ruff format --check .
 uv run pyright
 uv build
-uvx twine check dist/guardloop-0.3.0.tar.gz dist/guardloop-0.3.0-py3-none-any.whl
+uvx twine check dist/guardloop-0.4.0.tar.gz dist/guardloop-0.4.0-py3-none-any.whl
+unzip -l dist/guardloop-0.4.0-py3-none-any.whl | grep adapters   # subpackage shipped in the wheel
 ```
 
 ## Packaging and Release State
@@ -446,27 +526,27 @@ uvx twine check dist/guardloop-0.3.0.tar.gz dist/guardloop-0.3.0-py3-none-any.wh
 GuardLoop is configured and published as a real Python package.
 
 - PyPI project: `guardloop`
-- Latest release: `v0.3.0`
-- Build artifacts: wheel and source distribution
+- Latest release: `v0.4.0`
+- Optional extras: `otel` (OpenTelemetry exporters), `langgraph` (LangGraph adapter)
+- Build artifacts: wheel and source distribution (both include `guardloop/adapters/`)
 - Trusted Publishing: GitHub Actions to PyPI
 - GitHub environment: `pypi`
 - Changelog: `CHANGELOG.md`
 
-Publishing workflow:
+Workflows:
 
-- `.github/workflows/publish-pypi.yml`
-- Builds distributions with `uv build`
-- Uploads artifacts
-- Publishes to PyPI using `pypa/gh-action-pypi-publish`
-- Uses OIDC Trusted Publishing instead of a long-lived API token
+- `.github/workflows/ci.yml` — lint / type-check / test on push and pull request (Python 3.11–3.13).
+- `.github/workflows/publish-pypi.yml` — builds distributions with `uv build`,
+  uploads artifacts, and publishes to PyPI using `pypa/gh-action-pypi-publish`
+  with OIDC Trusted Publishing instead of a long-lived API token.
 
 ## Current Limitations
 
 GuardLoop is intentionally focused. It does not yet include:
 
 - LLM-based verifier ergonomics (budget-tracked clients on `VerifierContext`),
-- LangGraph adapter,
-- OpenAI Agents SDK adapter,
+- OpenAI Agents SDK adapter (planned for v0.4.1),
+- streaming support in the LangGraph adapter (`astream` / `astream_events`),
 - persistent circuit breaker state in Redis/database,
 - provider-level circuit breakers,
 - loop detection (repeated `tool + args`),
@@ -475,8 +555,8 @@ GuardLoop is intentionally focused. It does not yet include:
 - automated docs site,
 - semantic versioning automation.
 
-These are good future layers, but v0.3 already implements all four pillars and
-is a complete portfolio-grade library foundation.
+These are good future layers, but v0.4 already implements all four pillars plus
+the first framework adapter, and is a complete portfolio-grade library foundation.
 
 ## Future Goals
 
@@ -492,12 +572,19 @@ for LLM-based verifiers (today an LLM verifier must close over its own client).
 ### v0.4: Framework Adapters
 
 Goal: integrate GuardLoop with common agent frameworks without changing the core
-runtime model.
+runtime model or rewriting the user's agent.
 
-Planned adapters:
-
-- LangGraph adapter,
-- OpenAI Agents SDK adapter.
+- **v0.4.0 — LangGraph (delivered).** `guardloop.adapters.langgraph.guarded_graph`
+  returns a GuardLoop-compatible agent; a synchronous LangChain callback handler
+  bound to the `RunContext` runs the pre-flight budget check, records usage, and
+  routes tool calls through the breaker and tool-call budget — so all four pillars
+  apply inside a LangGraph run, and the verifier loop wraps the whole graph run.
+  Behind the `langgraph` extra; no-key demo at `examples/langgraph_guarded.py`.
+  Also added `RunContext.circuit_breakers` and a CI workflow.
+- **v0.4.1 — OpenAI Agents SDK.** The same pattern with the SDK's run-hooks
+  instead of LangChain callbacks: a `guarded_runner(agent)` helper behind an
+  `[openai-agents]` extra, with a no-key demo. Verifiers stay at the
+  `runtime.run` level.
 
 Portfolio value:
 
@@ -582,18 +669,23 @@ Good questions to be ready for:
 
 ## Recommended Next Step
 
-All four pillars are implemented. The best next engineering milestone is v0.4:
-framework adapters — slot GuardLoop *under* LangGraph and the OpenAI Agents SDK
-without changing the core runtime model.
+All four pillars plus the LangGraph adapter are implemented. The best next
+engineering milestone is **v0.4.1: the OpenAI Agents SDK adapter** — repeat the
+v0.4.0 pattern with the SDK's lifecycle hooks instead of LangChain callbacks.
 
 Build it narrowly:
 
-- start with a LangGraph adapter: consult the `BudgetController` before each LLM
-  node, inject a `RunContext` so the existing wrappers apply, and map the graph's
-  tools onto `ToolRunner`,
-- ship it behind an optional `[langgraph]` extra so core stays dependency-light,
-- add an `examples/langgraph_guarded.py` that wraps a real graph,
-- then repeat the pattern for the OpenAI Agents SDK `Runner`.
+- add `src/guardloop/adapters/openai_agents.py`: a `GuardLoopRunHooks(RunHooks)`
+  bound to the `RunContext` that runs the pre-flight budget check on `on_llm_start`,
+  records usage on `on_llm_end`, and routes tools through the breaker and tool-call
+  budget on `on_tool_start` / `on_tool_end`,
+- expose a `guarded_runner(agent)` helper that wraps `Runner.run(agent, input,
+  hooks=...)` into a GuardLoop-compatible agent,
+- ship it behind an optional `[openai-agents]` extra so core stays dependency-light,
+- add an `examples/openai_agents_guarded.py` no-key demo,
+- keep verifiers at the `runtime.run` level (the SDK's native input/output
+  guardrails are a separate concept; bridging them is a later note).
 
-That proves the "wrapper, not framework" thesis: the same budget / circuit
-breaker / verifier / telemetry envelope works around someone else's agent.
+That extends the "wrapper, not framework" thesis: the same budget / circuit
+breaker / verifier / telemetry envelope works around two different agent
+frameworks, with no change to the core runtime.

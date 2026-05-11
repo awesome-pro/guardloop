@@ -43,8 +43,13 @@ https://pypi.org/project/guardloop/
 The package can then be installed with:
 
 ```bash
-pip install guardloop
+pip install guardloop                 # core
+pip install "guardloop[langgraph]"    # + the LangGraph adapter
 ```
+
+Optional extras (`otel`, `langgraph`) ship in the same wheel — `uv build`
+packages all of `src/guardloop/**`, including `guardloop/adapters/`. After a
+build you can confirm with `unzip -l dist/guardloop-*.whl | grep adapters`.
 
 ## Future Releases
 

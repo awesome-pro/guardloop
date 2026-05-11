@@ -66,6 +66,46 @@ agent produced an answer, it just isn't trusted. With
 `VerificationFailed` (same `terminated_reason`, `output=None`, attempt count and
 feedback in `metadata`).
 
+## Framework Adapters
+
+GuardLoop is not an agent framework, so it does not "support" frameworks — it
+*wraps* them. An adapter is just a thing that produces a GuardLoop-compatible
+`async def agent(ctx, ...)` callable; you still call `runtime.run(agent, ...)`. The
+adapters live in `guardloop.adapters`, each behind its own optional extra, and the
+core `GuardLoop` class never references a framework.
+
+The LangGraph adapter (`guardloop.adapters.langgraph.guarded_graph`) is the first.
+LangGraph nodes call LangChain chat models, which do not go through GuardLoop's
+`ctx.openai` / `ctx.anthropic` wrappers, so the adapter hooks the cross-cutting seam
+LangChain *does* expose: a callback handler. `GuardLoopCallbackHandler` is a
+*synchronous* `BaseCallbackHandler` (LangChain only honours `raise_error` for sync
+handlers, and the handler does no I/O) with `raise_error = True` and
+`run_inline = True`. On `on_chat_model_start` / `on_llm_start` it estimates input
+tokens and runs `BudgetController.check_llm_call` (the pre-flight cost/token cap);
+on `on_llm_end` it records actual usage from the response's `usage_metadata` (or
+`llm_output["token_usage"]`); on `on_tool_start` / `on_tool_end` / `on_tool_error`
+it routes through `before_call` / `record_tool_call_started` / `record_success` /
+`record_failure`. Each LLM and tool call gets an `llm_call` / `tool_call` span that
+is a child of the active `agent_run` span. Guardrail exceptions raised inside the
+callbacks propagate out of `graph.ainvoke()` and are caught by `runtime.run`'s
+existing arms, so a budget breach inside the graph terminates the run.
+
+Two consequences worth knowing. First, `check_llm_call` always needs an output-token
+reservation, but LangChain chat models frequently do not declare a `max_tokens`, so
+`guarded_graph(...)` exposes `reserved_output_tokens` (default 1024) as the fallback
+reservation. Second, tool-side enforcement is only as "hard" as the graph's own error
+handling: a `ToolNode` with its default `handle_tool_errors=True` will catch a
+`ToolCallLimitExceeded` / `CircuitBreakerOpen` raised by the callback and turn it
+into a `ToolMessage`, so the graph continues (the breaker still records the event and
+the LLM-side caps still terminate the run). Pass `handle_tool_errors=False` for hard
+tool-call enforcement. Streaming (`astream` / `astream_events`) is out of scope for
+v0.4.
+
+The adapter needs `before_call` / `record_success` / `record_failure` on the per-tool
+breaker registry, so `RunContext.circuit_breakers` exposes it as a public read-only
+property (it persists on the `GuardLoop` instance across runs, like the breaker state
+itself).
+
 ## Telemetry
 
 Provider wrappers emit OpenTelemetry spans through a small conventions module.

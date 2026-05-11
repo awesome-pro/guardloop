@@ -37,11 +37,24 @@ class RunContext:
         self.telemetry = telemetry
         self.retry_feedback: list[str] = []
         self.attempt: int = 1
+        self._circuit_breakers = circuit_breakers
         self._raw_openai_client = openai_client
         self._raw_anthropic_client = anthropic_client
         self._openai: WrappedOpenAIClient | None = None
         self._anthropic: WrappedAnthropicClient | None = None
         self._tools = ToolRunner(budget, telemetry, circuit_breakers)
+
+    @property
+    def circuit_breakers(self) -> CircuitBreakerRegistry:
+        """The per-tool circuit breaker registry shared by this run.
+
+        Exposed so framework adapters can route tool calls through the breaker
+        (``before_call`` / ``record_success`` / ``record_failure``) and so agents
+        can inspect breaker state. The registry persists on the ``GuardLoop``
+        instance across runs.
+        """
+
+        return self._circuit_breakers
 
     @property
     def openai(self) -> WrappedOpenAIClient:

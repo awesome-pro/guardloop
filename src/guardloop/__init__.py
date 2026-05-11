@@ -1,4 +1,12 @@
-"""GuardLoop public API."""
+"""GuardLoop public API.
+
+Framework adapters live in :mod:`guardloop.adapters` (each behind its own
+optional extra) and are intentionally not re-exported here, so ``import
+guardloop`` stays dependency-light. For LangGraph::
+
+    pip install "guardloop[langgraph]"
+    from guardloop.adapters.langgraph import guarded_graph
+"""
 
 from guardloop.circuit_breaker import (
     CircuitBreakerConfig,

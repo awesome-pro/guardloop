@@ -43,13 +43,15 @@ https://pypi.org/project/guardloop/
 The package can then be installed with:
 
 ```bash
-pip install guardloop                 # core
-pip install "guardloop[langgraph]"    # + the LangGraph adapter
+pip install guardloop                    # core
+pip install "guardloop[langgraph]"       # + the LangGraph adapter
+pip install "guardloop[openai-agents]"   # + the OpenAI Agents SDK adapter
 ```
 
-Optional extras (`otel`, `langgraph`) ship in the same wheel — `uv build`
-packages all of `src/guardloop/**`, including `guardloop/adapters/`. After a
-build you can confirm with `unzip -l dist/guardloop-*.whl | grep adapters`.
+Optional extras (`otel`, `langgraph`, `openai-agents`) ship in the same wheel —
+`uv build` packages all of `src/guardloop/**`, including `guardloop/adapters/`.
+After a build you can confirm with `unzip -l dist/guardloop-*.whl | grep adapters`
+(it lists `guardloop/adapters/__init__.py`, `.../langgraph.py`, `.../openai_agents.py`).
 
 ## Future Releases
 

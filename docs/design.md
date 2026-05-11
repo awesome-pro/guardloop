@@ -106,6 +106,43 @@ breaker registry, so `RunContext.circuit_breakers` exposes it as a public read-o
 property (it persists on the `GuardLoop` instance across runs, like the breaker state
 itself).
 
+The OpenAI Agents SDK adapter (`guardloop.adapters.openai_agents.guarded_runner`,
+v0.4.1) is the same shape with the SDK's cross-cutting seam — `RunHooks` lifecycle
+hooks — instead of LangChain callbacks. `GuardLoopRunHooks` is a `RunHooks` subclass
+bound to the `RunContext`: `on_llm_start` resolves the model (a string `agent.model`,
+or a `Model` object's `.model` attribute, falling back to the SDK default) and
+provider, estimates input tokens from the system prompt + input items, and runs
+`check_llm_call`; `on_llm_end` records actual usage from `response.usage` (per-call,
+not the cumulative `context_wrapper.usage`); `on_tool_start` / `on_tool_end` route
+through `before_call` / `record_tool_call_started` / `record_success`. Unlike
+LangChain — whose async callbacks run in a detached event loop that swallows
+exceptions, which is why `GuardLoopCallbackHandler` had to be *synchronous* —
+`RunHooks` methods are natively `async` and awaited inline, so guardrail exceptions
+propagate, making `GuardLoopRunHooks` an `async` class. One wrinkle: the SDK wraps
+exceptions raised from its tool lifecycle hooks in `agents.exceptions.UserError` (with
+the original as `__cause__`), so `guarded_runner` walks the exception chain and
+re-raises a `GuardLoopError` it finds there, so `runtime.run`'s `except GuardLoopError`
+arm still sees the right `terminated_reason`.
+
+Two consequences specific to this adapter. First, the SDK has **no `on_tool_error`
+hook** and, by default, catches a tool exception and feeds an error *string* back to
+the model (so `on_tool_end` fires with that string) — so the breaker here records tool
+*attempts* and *successes* but not *failures*; a flaky SDK-managed tool will not open
+the breaker on its own (route the tool body through `ctx.call_tool(...)` for full
+breaker semantics, or — a future option — give the agent's `FunctionTool`s a
+re-raising `failure_error_function`). The breaker's *blocking* behaviour (an
+already-open breaker rejects the next SDK tool call via `before_call` in
+`on_tool_start`) does apply. Second, `RunHooks` observes the whole `Runner.run`,
+including handoffs, so one `agent_run` span can legitimately cover several
+agents/models — per-call provider/model resolution in `on_llm_start` handles that;
+`max_turns` (the SDK's per-turn loop cap) and GuardLoop's pre-flight budget compose,
+with whichever fires first stopping the run; the SDK's own tracing system is
+independent of GuardLoop's OpenTelemetry and is left untouched; streaming
+(`Runner.run_streamed`) is out of scope for v0.4.1 (usage is still accounted via
+`on_llm_end`). As with LangGraph, `guarded_runner(..., reserved_output_tokens=N)`
+(default 1024) supplies the pre-flight output reservation when
+`agent.model_settings.max_tokens` is unset.
+
 ## Telemetry
 
 Provider wrappers emit OpenTelemetry spans through a small conventions module.

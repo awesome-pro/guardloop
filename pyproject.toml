@@ -1,6 +1,6 @@
 [project]
 name = "guardloop"
-version = "0.4.0"
+version = "0.4.1"
 description = "A production runtime guardrail for AI agents: budget caps, timeouts, tool limits, circuit breakers, verifier retries, and OpenTelemetry traces."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -22,6 +22,7 @@ keywords = [
     "llm",
     "mlops",
     "openai",
+    "openai-agents",
     "opentelemetry",
     "retry",
     "runtime-guardrails",
@@ -69,11 +70,15 @@ langgraph = [
     "langchain-core>=0.3.0,<1",
     "langgraph>=0.2.0,<1",
 ]
+openai-agents = [
+    "openai-agents>=0.17,<1",
+]
 
 [dependency-groups]
 dev = [
     "langchain-core>=0.3.0,<1",
     "langgraph>=0.2.0,<1",
+    "openai-agents>=0.17,<1",
     "opentelemetry-exporter-otlp>=1.41.1,<2",
     "opentelemetry-sdk>=1.41.1,<2",
     "pytest>=9.0.3,<10",

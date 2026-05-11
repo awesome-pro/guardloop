@@ -9,6 +9,11 @@ LangGraph::
 
     pip install "guardloop[langgraph]"
     from guardloop.adapters.langgraph import guarded_graph
+
+OpenAI Agents SDK::
+
+    pip install "guardloop[openai-agents]"
+    from guardloop.adapters.openai_agents import guarded_runner
 """
 
 from __future__ import annotations

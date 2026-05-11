@@ -45,9 +45,21 @@ optional extra; no-key demo at `examples/langgraph_guarded.py`. Also adds a publ
 `RunContext.circuit_breakers` accessor and a CI workflow (pytest + ruff + pyright on
 push/PR across Python 3.11–3.13).
 
-**v0.4.1 — OpenAI Agents SDK.** The same shape with the SDK's run-hooks instead of
-LangChain callbacks: a `guarded_runner(agent)` helper behind an `[openai-agents]`
-extra, with a no-key demo. Verifiers stay at the `runtime.run` level.
+**v0.4.1 — OpenAI Agents SDK (shipped).** The same shape with the SDK's run-hooks
+instead of LangChain callbacks: `guardloop.adapters.openai_agents.guarded_runner(agent)`
+returns a GuardLoop-compatible agent that calls `Runner.run` under the hood, with a
+`GuardLoopRunHooks` (a `RunHooks` subclass) bound to the `RunContext` doing the
+pre-flight budget check (`on_llm_start`), usage accounting (`on_llm_end`), and
+breaker + tool-call-budget routing (`on_tool_start` / `on_tool_end`) — so the caps,
+breakers, and `llm_call` / `tool_call` spans apply *inside* `Runner.run(...)`. The
+verifier retry loop wraps the whole run (verifiers stay at the `runtime.run` level),
+with feedback injected into a copy of the run input. Behind the `[openai-agents]`
+optional extra; no-key demo at `examples/openai_agents_guarded.py`. Known gap: the
+SDK has no tool-error lifecycle hook and turns a tool exception into an error string
+fed back to the model, so the breaker tracks tool *attempts* / *successes* but not
+*failures* from SDK-managed tools (an already-open breaker still blocks the next
+call; route a tool body through `ctx.call_tool(...)` for full breaker semantics).
+Streaming (`Runner.run_streamed`) is out of scope for this release.
 
 ## v0.5: Observability Polish
 

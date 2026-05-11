@@ -6,6 +6,11 @@ guardloop`` stays dependency-light. For LangGraph::
 
     pip install "guardloop[langgraph]"
     from guardloop.adapters.langgraph import guarded_graph
+
+For the OpenAI Agents SDK::
+
+    pip install "guardloop[openai-agents]"
+    from guardloop.adapters.openai_agents import guarded_runner
 """
 
 from guardloop.circuit_breaker import (

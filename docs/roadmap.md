@@ -61,13 +61,17 @@ fed back to the model, so the breaker tracks tool *attempts* / *successes* but n
 call; route a tool body through `ctx.call_tool(...)` for full breaker semantics).
 Streaming (`Runner.run_streamed`) is out of scope for this release.
 
-## v0.5: Observability Polish
+## v0.5: Observability Depth
 
-Turn the OpenTelemetry foundation into portfolio artifacts: a `docker-compose`
-stack running Jaeger and Arize Phoenix, captured trace screenshots
-(`agent_run -> llm_call -> tool_call -> verifier_run`), an architecture
-write-up, and a demo-video script. Optionally: per-attempt `agent_attempt`
-span nesting and an OpenTelemetry metrics layer.
+Build out the OpenTelemetry layer past spans: an OpenTelemetry **metrics**
+provider (counters/histograms for cost, tokens, tool calls, and verifier
+attempts), per-attempt `agent_attempt` span nesting so a verifier retry loop
+reads as a tree rather than a flat list of sibling LLM calls, and a one-command
+`docker-compose` stack (Jaeger for traces, Arize Phoenix for LLM-trace
+inspection) that the no-key demos export to — so the traces and metrics are
+inspectable end to end, not just emitted. Documentation artifacts (an
+architecture write-up, a recorded walkthrough of the `agent_run -> llm_call ->
+tool_call -> verifier_run` tree) fall out of having that stack.
 
 ## v0.6: Persistence and Team Settings
 

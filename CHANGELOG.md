@@ -5,6 +5,23 @@ All notable changes to GuardLoop are documented here. The format is based on
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) (pre-1.0:
 minor releases may include breaking changes).
 
+## [0.4.2] - 2026-05-11
+
+Documentation-only release — no code changes. The published package is
+functionally identical to `0.4.1`; this release exists to refresh the project
+description shown on PyPI.
+
+### Changed
+
+- Reframed the `v0.5` roadmap entry (`README.md`, `docs/roadmap.md`,
+  `docs/project-overview.md`) to lead with its engineering substance — an
+  OpenTelemetry **metrics** layer (counters/histograms for cost, tokens, tool
+  calls, and verifier attempts), per-attempt `agent_attempt` span nesting, and a
+  one-command Jaeger + Phoenix `docker-compose` stack — rather than the trace
+  screenshots / write-up that fall out of it.
+- Added `docs/media/` (with a checklist of wanted assets) and a demo screenshot
+  referenced from the README's "Try the No-Key Demo" section.
+
 ## [0.4.1] - 2026-05-11
 
 ### Added
@@ -149,6 +166,7 @@ minor releases may include breaking changes).
 - No-key demo `examples/runaway_cost_prevention.py`; packaged and published to
   PyPI via GitHub Actions OIDC Trusted Publishing.
 
+[0.4.2]: https://github.com/awesome-pro/guardloop/releases/tag/v0.4.2
 [0.4.1]: https://github.com/awesome-pro/guardloop/releases/tag/v0.4.1
 [0.4.0]: https://github.com/awesome-pro/guardloop/releases/tag/v0.4.0
 [0.3.0]: https://github.com/awesome-pro/guardloop/releases/tag/v0.3.0

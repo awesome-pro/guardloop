@@ -5,6 +5,38 @@ All notable changes to GuardLoop are documented here. The format is based on
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) (pre-1.0:
 minor releases may include breaking changes).
 
+## [0.4.0] - 2026-05-11
+
+### Added
+
+- **LangGraph adapter (`guardloop.adapters.langgraph`).** `guarded_graph(graph)`
+  returns a GuardLoop-compatible agent callable you pass to `GuardLoop.run(...)`;
+  a `GuardLoopCallbackHandler` (a synchronous LangChain `BaseCallbackHandler`)
+  bound to the `RunContext` runs the pre-flight budget check before each LLM call,
+  records actual usage afterward, and routes tool calls through the per-tool
+  circuit breaker and the tool-call budget — so cost / token / time caps, breakers,
+  and `llm_call` / `tool_call` OpenTelemetry spans all apply *inside* a LangGraph
+  run. The verifier retry loop wraps the whole graph run, with verifier feedback
+  injected into a copy of the input state (`feedback_to_state` to customise).
+  `guarded_graph(..., reserved_output_tokens=N)` sets the output-token reservation
+  for the pre-flight check (default `1024`), since LangChain chat models often omit
+  `max_tokens`. Behind the new `langgraph` optional extra
+  (`pip install "guardloop[langgraph]"`).
+- `guardloop.adapters` subpackage; `guardloop.adapters.langgraph` exports
+  `guarded_graph` and `GuardLoopCallbackHandler`. (Adapters are intentionally not
+  re-exported from the top-level `guardloop` package, so `import guardloop` stays
+  dependency-light.)
+- `RunContext.circuit_breakers` — public read-only access to the per-tool circuit
+  breaker registry (used by adapters; also handy for inspecting breaker state).
+- No-key demo `examples/langgraph_guarded.py`.
+- `.github/workflows/ci.yml` — runs pytest + ruff + pyright on push / pull request
+  across Python 3.11–3.13.
+
+### Changed
+
+- `pyproject.toml`: new `langgraph` optional-dependency extra; `langgraph` /
+  `langchain-core` added to the dev dependency group; `langgraph` keyword.
+
 ## [0.3.0] - 2026-05-10
 
 ### Added
@@ -77,6 +109,7 @@ minor releases may include breaking changes).
 - No-key demo `examples/runaway_cost_prevention.py`; packaged and published to
   PyPI via GitHub Actions OIDC Trusted Publishing.
 
+[0.4.0]: https://github.com/awesome-pro/guardloop/releases/tag/v0.4.0
 [0.3.0]: https://github.com/awesome-pro/guardloop/releases/tag/v0.3.0
 [0.2.0]: https://github.com/awesome-pro/guardloop/releases/tag/v0.2.0
 [0.1.0]: https://github.com/awesome-pro/guardloop/releases/tag/v0.1.0

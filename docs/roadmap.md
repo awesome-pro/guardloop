@@ -30,9 +30,24 @@ timeout. Built-in rule-based verifiers (`non_empty`, `matches_regex`,
 ## v0.4: Framework Adapters
 
 Slot GuardLoop *under* common agent frameworks without changing the core runtime
-model: a LangGraph adapter (consult the budget before each LLM node, inject a
-`RunContext`, map the graph's tools onto `ToolRunner`) and an OpenAI Agents SDK
-adapter. Optional `[langgraph]` / `[openai-agents]` extras and an example each.
+model or rewriting your agent.
+
+**v0.4.0 — LangGraph (shipped).** `guardloop.adapters.langgraph.guarded_graph(graph)`
+returns a GuardLoop-compatible agent you pass to `runtime.run(...)`. LangGraph nodes
+call LangChain chat models (which do not flow through GuardLoop's provider wrappers),
+so the adapter binds a LangChain callback handler to the `RunContext`: it runs the
+pre-flight budget check before each LLM call, records usage afterward, and routes
+tool calls through the per-tool circuit breaker and the tool-call budget — so cost /
+token / time caps, breakers, and `llm_call` / `tool_call` OpenTelemetry spans all
+apply *inside* the graph. The verifier retry loop wraps the whole graph run, with
+the feedback injected into a copy of the input state. Behind the `[langgraph]`
+optional extra; no-key demo at `examples/langgraph_guarded.py`. Also adds a public
+`RunContext.circuit_breakers` accessor and a CI workflow (pytest + ruff + pyright on
+push/PR across Python 3.11–3.13).
+
+**v0.4.1 — OpenAI Agents SDK.** The same shape with the SDK's run-hooks instead of
+LangChain callbacks: a `guarded_runner(agent)` helper behind an `[openai-agents]`
+extra, with a no-key demo. Verifiers stay at the `runtime.run` level.
 
 ## v0.5: Observability Polish
 
